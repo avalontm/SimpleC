@@ -2,11 +2,10 @@
 {
     class StringToken : Token
     {
-        public string StringValue { get; private set; }
 
-        public StringToken(string content, int line, int column) : base(content, line, column)
+        public StringToken(string content, int line, int column) : base(line, column)
         {
-            StringValue = content;
+            Content = $"\"{content}\"";
         }
     }
 

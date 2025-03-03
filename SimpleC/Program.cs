@@ -84,10 +84,6 @@ namespace SimpleC
             Console.WriteLine("\nAST generado :)");
             Console.ResetColor();
 
-            foreach (var node in ast.SubNodes)
-            {
-                Console.WriteLine(node.ToString());
-            }
         }
     }
 }

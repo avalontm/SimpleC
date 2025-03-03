@@ -1,6 +1,6 @@
 ﻿namespace SimpleC.Types.AstNodes
 {
-    class StatementSequenceNode : AstNode
+    public class StatementSequenceNode : AstNode
     {
         public IEnumerable<AstNode> SubNodes
         {

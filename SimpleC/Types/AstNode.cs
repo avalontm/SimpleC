@@ -1,6 +1,6 @@
 ﻿namespace SimpleC.Types
 {
-    abstract class AstNode
+    public abstract class AstNode
     {
     
     }

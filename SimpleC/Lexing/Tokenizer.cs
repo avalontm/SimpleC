@@ -82,7 +82,7 @@ namespace SimpleC.Lexing
                     case CharType.StringDelimiter:
                         tokens.Add(readStringLiteral(startColumn));
                         break;
-                    case CharType.CharDelimiter:
+                    case CharType.CharDelimiter: 
                         tokens.Add(readCharLiteral(startColumn));
                         break;
                     case CharType.Preprocessor:
@@ -207,15 +207,38 @@ namespace SimpleC.Lexing
 
         private Token readStringLiteral(int startColumn)
         {
-            next();
-            var builder = new StringBuilder();
-            while (!eof() && peek() != '"')
+            if (peek() != '"')
             {
-                builder.Append(next());
+                throw new Exception($"Error: Se esperaba una comilla de apertura (\") en la línea {currentLine}, posición {startColumn}.");
             }
-            next();
-            return new StringToken(builder.ToString(), currentLine, startColumn);
+
+            next(); // Consumimos la comilla de apertura
+            var builder = new StringBuilder();
+
+            while (!eof())
+            {
+                char currentChar = peek();
+
+                // Si encontramos la comilla de cierre, terminamos la lectura
+                if (currentChar == '"')
+                {
+                    next(); // Consumimos la comilla de cierre
+                    return new StringToken(builder.ToString(), currentLine, currentColumn);
+                }
+
+                // Si encontramos un salto de línea antes de cerrar la cadena, es un error
+                if (currentChar == '\n' || currentChar == '\r')
+                {
+                    throw new Exception($"Error: Las cadenas no pueden contener saltos de línea sin cierre en la línea {currentLine}, posición {currentColumn}.");
+                }
+
+                builder.Append(next()); // Agregar el carácter a la cadena
+            }
+
+            // Si terminamos el archivo sin encontrar una comilla de cierre, error
+            throw new Exception($"Error: La cadena iniciada en la línea {currentLine}, posición {currentColumn} no tiene una comilla de cierre (\").");
         }
+
 
         private Token readCharLiteral(int startColumn)
         {

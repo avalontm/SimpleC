@@ -1,7 +1,9 @@
-﻿using SimpleC.Types;
+﻿using SimpleC.Lexing;
+using SimpleC.Types;
 using SimpleC.Types.AstNodes;
 using SimpleC.Types.Tokens;
 using System.Diagnostics;
+using System.Xml.Linq;
 
 namespace SimpleC.Parsing
 {
@@ -22,6 +24,8 @@ namespace SimpleC.Parsing
         public ProgramNode ParseToAst()
         {
             scopes.Push(new ProgramNode());
+            VariableType varType;
+            Token? name = null;
 
             while (!eof())
             {
@@ -38,10 +42,14 @@ namespace SimpleC.Parsing
                     {
                         if (keyword.IsTypeKeyword)
                         {
-                            var varType = keyword.ToVariableType();
-                            var name = readToken<IdentifierToken>();
-                            scopes.Push(new KeywordNode(varType, name.Content));
-                            scopes.Pop();
+                            varType = keyword.ToVariableType();
+                            name = readToken<IdentifierToken>();
+                            if(name == null)
+                            {
+                                name = next();
+                            }
+                            //vamos a comprobar las palabras reservadas que sean de asingnaciones (int, float, char, bool, stirng)
+                            GetKeyword(varType, name);
                         }
                         else
                         {
@@ -54,13 +62,29 @@ namespace SimpleC.Parsing
                     var token = next();
                     if (!KeywordToken.IsKeyword(token.Content))
                     {
-                        throw new ParsingException($"Identificador no reconocido: {token.Content} en línea {token.Line}, columna {token.Column}");
+                        if (ParserGlobal.Verify(token.Content))
+                        {
+                            var node = ParserGlobal.Get(token.Content);
+                            if (node is VariableNode variableNode)
+                            {
+                                varType = variableNode.Type;
+                                GetKeyword(varType, name);
+                            }
+                            else if (node is MethodNode methodNode)
+                            {
+                                varType = methodNode.Type;
+                                GetKeyword(varType, name);
+                            }
+
+                            continue;
+                        }
+                        throw new ParsingException($"El identificador: {token.Content} No se encontro.: en línea {token.Line}, columna {token.Column}");
                     }
                     scopes.Push(new IdentifierNode(token.Content));
+                    scopes.Pop();
                 }
                 else
                 {
-                    Debug.WriteLine($"Peek: {peek().GetType()}");
                     if (peek() is PreprocessorToken preprocessorToken)
                     {
                         var tokens = readUntilChar(new string[] { ">", "\"" });
@@ -109,12 +133,94 @@ namespace SimpleC.Parsing
             return (ProgramNode)scopes.Pop();
         }
 
+        void GetKeyword(VariableType varType, Token name)
+        {
+            switch (varType)
+            {
+                case VariableType.Int:
+                case VariableType.Float:
+                case VariableType.Char:
+                case VariableType.Bool:
+                case VariableType.String:
+
+                    Token _operator = next();
+
+                    if (_operator.Content == "(")
+                    {
+                        List<Token> _parameter = new List<Token>();
+                        _parameter.Add(_operator);
+                        while (next().Content != ")")
+                        {
+                            _parameter.Add(peek());
+                        }
+
+                        var openKey = next();
+
+                        Debug.WriteLine(openKey);
+                        scopes.Push(new MethodNode(varType, name.Content, _parameter));
+                        scopes.Pop();
+                        return;
+                    }
+
+                    List<Token> _parameters = new List<Token>();
+                    _parameters.Add(peek());
+                    while (next().Content != ";")
+                    {
+                        _parameters.Add(peek());
+                    }
+
+                    scopes.Push(new VariableNode(varType, name, _operator, _parameters));
+                    scopes.Pop();
+                    break;
+                case VariableType.Void:
+                    List<Token> tokens = new List<Token>();
+
+                    tokens.Add(peek());
+
+                    while (next().Content != ")")
+                    {
+                        tokens.Add(peek());
+                    }
+
+                    if (peek().Content == ";")
+                    {
+                        tokens.Add(peek());
+                    }
+                    next();
+
+                    scopes.Push(new MethodNode(VariableType.Void, name.Content, tokens));
+                    scopes.Pop();
+                    break;
+                case VariableType.Return:
+
+                    tokens = new List<Token>();
+                    tokens.Add(name);
+                    tokens.Add(peek());
+
+                    while (next().Content != ";")
+                    {
+                        tokens.Add(peek());
+                    }
+                    while (next().Content != "}") { }
+
+                    scopes.Push(new ReturnNode(tokens));
+                    scopes.Pop();
+
+                    break;
+                default:
+                    scopes.Push(new KeywordNode(varType, name.Content));
+                    scopes.Pop();
+                    break;
+
+            }
+        }
+
         private TExpected readToken<TExpected>() where TExpected : Token
         {
             if (peek() is TExpected)
                 return (TExpected)next();
             else
-                throw new ParsingException("Unexpected token " + peek());
+                return null;
         }
 
         private IEnumerable<Token> readUntilChar(string[] chars)
