@@ -14,7 +14,8 @@
             { "include", KeywordType.Include },
             { "string", KeywordType.String },
             { "char", KeywordType.Char },
-            { "char*", KeywordType.CharPointer },
+            { "true", KeywordType.True },
+            { "false", KeywordType.False },
         };
 
         private static readonly Dictionary<KeywordType, VariableType> keywordTypeToVariableType = new Dictionary<KeywordType, VariableType>
@@ -28,6 +29,8 @@
             { KeywordType.Char, VariableType.Char },
             { KeywordType.CharPointer, VariableType.CharPointer },
             { KeywordType.Return, VariableType.Return },
+            { KeywordType.True, VariableType.True },
+            { KeywordType.False, VariableType.False },
         };
 
         public KeywordType KeywordType { get; private set; }
@@ -41,7 +44,7 @@
             get { return keywordTypeToVariableType.ContainsKey(KeywordType); }
         }
 
-        public KeywordToken(string content) : base(content)
+        public KeywordToken(string content, int line, int column) : base(content, line, column) 
         {
             if (!validKeywords.ContainsKey(content))
                 throw new ArgumentException($"El contenido no es una palabra clave válida: {content}", "content");

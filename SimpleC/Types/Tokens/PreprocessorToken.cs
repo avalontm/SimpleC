@@ -17,7 +17,7 @@ namespace SimpleC.Types.Tokens
     {
         public PreprocessorType Type { get; private set; }
 
-        public PreprocessorToken(string content) : base(content)
+        public PreprocessorToken(string content, int line, int column) : base(content, line, column)
         {
             if (!content.StartsWith("#"))
                 throw new ArgumentException("Un PreprocessorToken debe comenzar con '#'.");

@@ -2,7 +2,7 @@
 {
     class CloseBraceToken : BraceToken
     {
-        public CloseBraceToken(string content) : base(content)
+        public CloseBraceToken(string content, int line, int column) : base(content, line, column)
         {
             switch (content)
             {

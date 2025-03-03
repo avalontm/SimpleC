@@ -31,7 +31,7 @@ namespace SimpleC.Types.Tokens
 
         public OperatorType OperatorType { get; private set; }
 
-        public OperatorToken(string content) : base(content)
+        public OperatorToken(string content, int line, int column) : base(content, line, column)
         {
             if (!validOperators.ContainsKey(content))
                 throw new ArgumentException("The content is no valid operator.", "content");

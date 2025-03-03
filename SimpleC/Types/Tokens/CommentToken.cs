@@ -4,11 +4,9 @@ namespace SimpleC.Types
 {
     class CommentToken : Token
     {
-        public string Content { get; }
-
-        public CommentToken(string content) : base(content)
+        public CommentToken(string content, int line, int column) : base(content, line, column)
         {
-            Content = content;
+
         }
 
         public override string ToString()

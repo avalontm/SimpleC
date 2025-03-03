@@ -15,5 +15,7 @@
         CharArray,
         Char,
         Identifier,
+        True,
+        False,
     }
 }

@@ -8,7 +8,7 @@ namespace SimpleC.Types.Tokens
 {
     class OpenBraceToken : BraceToken
     {
-        public OpenBraceToken(string content) : base(content)
+        public OpenBraceToken(string content, int line, int column) : base(content, line, column)
         {
             switch (content)
             {

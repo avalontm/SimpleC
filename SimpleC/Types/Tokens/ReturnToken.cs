@@ -4,7 +4,7 @@ namespace SimpleC.Types.Tokens
 {
     class ReturnToken : Token
     {
-        public ReturnToken(string content) : base(content)
+        public ReturnToken(string content, int line, int column) : base(content, line, column)
         {
             Debug.WriteLine(content);
             if (content != ";")

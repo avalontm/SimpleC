@@ -15,7 +15,6 @@ namespace SimpleC.Parsing
         public Parser(Token[] tokens)
         {
             this.Tokens = tokens;
-
             readingPosition = 0;
             scopes = new Stack<StatementSequenceNode>();
         }
@@ -30,36 +29,42 @@ namespace SimpleC.Parsing
                 {
                     var keyword = (KeywordToken)next();
 
-                    if (scopes.Count == 1) // Estamos en el nivel superior, las únicas palabras clave válidas son los tipos de variables, el inicio de una variable o la definición de una función.
+                    if (!KeywordToken.IsKeyword(keyword.Content))
+                    {
+                        throw new ParsingException($"Palabra clave inválida: {keyword.Content} en línea {keyword.Line}, columna {keyword.Column}");
+                    }
 
+                    if (scopes.Count == 1)
                     {
                         if (keyword.IsTypeKeyword)
                         {
                             var varType = keyword.ToVariableType();
-                            var name = readToken<IdentifierToken>(); //Debe estar seguido por un identificador.
-
+                            var name = readToken<IdentifierToken>();
                             scopes.Push(new KeywordNode(varType, name.Content));
-
                             scopes.Pop();
                         }
                         else
                         {
-                            throw new ParsingException($"Se encontró una palabra clave no relacionada con un tipo en el nivel superior., `{peek().Content}`");
+                            throw new ParsingException($"Se encontró una palabra clave no relacionada con un tipo en el nivel superior: `{keyword.Content}` en línea {keyword.Line}, columna {keyword.Column}");
                         }
                     }
-
                 }
-                else // Top 0 (Global)
+                else if (peek() is IdentifierToken identifierToken)
+                {
+                    var token = next();
+                    if (!KeywordToken.IsKeyword(token.Content))
+                    {
+                        throw new ParsingException($"Identificador no reconocido: {token.Content} en línea {token.Line}, columna {token.Column}");
+                    }
+                    scopes.Push(new IdentifierNode(token.Content));
+                }
+                else
                 {
                     Debug.WriteLine($"Peek: {peek().GetType()}");
                     if (peek() is PreprocessorToken preprocessorToken)
                     {
                         var tokens = readUntilChar(new string[] { ">", "\"" });
                         scopes.Push(new PreprocessorNode(tokens));
-                    }
-                    else if (peek() is IdentifierToken identifierToken)
-                    {
-                        scopes.Push(new IdentifierNode(next().Content));
                     }
                     else if (peek() is OperatorToken operatorToken)
                     {
@@ -92,7 +97,6 @@ namespace SimpleC.Parsing
                     else if (peek() is CloseBraceToken closeBraceToken)
                     {
                         scopes.Push(new CloseBraceNode(next().Content));
-                     
                     }
 
                     scopes.Pop();
@@ -103,6 +107,14 @@ namespace SimpleC.Parsing
                 throw new ParsingException("Los scopes no están correctamente anidados.");
 
             return (ProgramNode)scopes.Pop();
+        }
+
+        private TExpected readToken<TExpected>() where TExpected : Token
+        {
+            if (peek() is TExpected)
+                return (TExpected)next();
+            else
+                throw new ParsingException("Unexpected token " + peek());
         }
 
         private IEnumerable<Token> readUntilChar(string[] chars)
@@ -138,43 +150,9 @@ namespace SimpleC.Parsing
             }
         }
 
-        private IEnumerable<Token> readTokenSeqence(params Type[] expectedTypes)
-        {
-            foreach (var t in expectedTypes)
-            {
-                if (!t.IsAssignableFrom(peek().GetType()))
-                    throw new ParsingException("Unexpected token");
-                yield return next();
-            }
-        }
-
-        private IEnumerable<Token> readUntilClosingBrace()
-        {
-            //TODO: Only allow round braces, handle nested braces!
-            while (!eof() && !(peek() is CloseBraceToken))
-                yield return next();
-            next(); //skip the closing brace
-        }
-
-        private IEnumerable<Token> readUntilStatementSeperator()
-        {
-            while (!eof() && !(peek() is StatementSperatorToken))
-                yield return next();
-            next(); //skip the semicolon
-        }
-
-        private TExpected readToken<TExpected>() where TExpected : Token
-        {
-            if (peek() is TExpected)
-                return (TExpected)next();
-            else
-                throw new ParsingException("Unexpected token " + peek());
-        }
-
         [DebuggerStepThrough]
         private Token peek()
         {
-            //TODO: Check for eof()
             return Tokens[readingPosition];
         }
 

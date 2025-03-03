@@ -9,7 +9,7 @@ namespace SimpleC.Types.Tokens
 {
     internal class NewLineToken : Token
     {
-        public NewLineToken(string content) : base(content)
+        public NewLineToken(string content, int line, int column) : base(content, line, column)
         {
            Debug.WriteLine("NewLine");
         }

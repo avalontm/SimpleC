@@ -4,7 +4,7 @@
     {
         public string StringValue { get; private set; }
 
-        public StringToken(string content) : base(content) 
+        public StringToken(string content, int line, int column) : base(content, line, column)
         {
             StringValue = content;
         }

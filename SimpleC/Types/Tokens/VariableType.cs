@@ -12,5 +12,7 @@
         CharPointer,
         CharArray,
         Return,
+        True,
+        False,
     }
 }

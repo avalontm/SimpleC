@@ -6,9 +6,9 @@ namespace SimpleC.Types
     {
         public float Number { get; }
 
-        public FloatLiteralToken(string number) : base(number)
+        public FloatLiteralToken(string content, int line, int column) : base(content, line, column)
         {
-            Number = float.Parse(number, System.Globalization.CultureInfo.InvariantCulture);
+            Number = float.Parse(content, System.Globalization.CultureInfo.InvariantCulture);
         }
     }
 }

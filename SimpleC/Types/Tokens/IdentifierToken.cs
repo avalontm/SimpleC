@@ -2,7 +2,7 @@
 {
     class IdentifierToken : Token
     {
-        public IdentifierToken(string content) : base(content)
+        public IdentifierToken(string content, int line, int column) : base(content, line, column)
         { 
         
         }

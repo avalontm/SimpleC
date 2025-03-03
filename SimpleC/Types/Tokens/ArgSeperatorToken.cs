@@ -8,8 +8,7 @@ namespace SimpleC.Types.Tokens
 {
     class ArgSeperatorToken : Token
     {
-        public ArgSeperatorToken(string content)
-            : base(content)
+        public ArgSeperatorToken(string content, int line, int column) : base(content, line, column)
         {
             if (content != ",")
                 throw new ArgumentException("The content is no argument seperator.", "content");

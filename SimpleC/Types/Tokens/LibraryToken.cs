@@ -2,11 +2,10 @@
 {
     class LibraryToken : Token
     {
-        public string Name { get; }
 
-        public LibraryToken(string name) : base(name)
+        public LibraryToken(string content, int line, int column) : base(content, line, column)
         {
-            Name = name;
+
         }
     }
 }

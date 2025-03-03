@@ -4,9 +4,9 @@
     {
         public string CharValue { get; }
 
-        public CharLiteralToken(char value) : base(value.ToString())
+        public CharLiteralToken(string content, int line, int column) : base(content, line, column)
         {
-            CharValue = value.ToString();
+            CharValue = content;
         }
     }
 

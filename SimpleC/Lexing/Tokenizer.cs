@@ -13,8 +13,8 @@ namespace SimpleC.Lexing
     {
         public string Code { get; private set; }
         private int readingPosition;
-        private int currentLine; // Contador de líneas
-        private int currentPosition; // Posición actual en la línea
+        private int currentLine;
+        private int currentColumn;
         private static readonly HashSet<string> Keywords = new HashSet<string>
         {
             "int", "float", "bool", "void", "return", "char", "string",
@@ -28,8 +28,8 @@ namespace SimpleC.Lexing
         {
             this.Code = code;
             readingPosition = 0;
-            currentLine = 1; // Iniciar en la primera línea
-            currentPosition = 1; // Iniciar en la posición 1 de la línea
+            currentLine = 1;
+            currentColumn = 1;
         }
 
         public Token[] Tokenize()
@@ -41,81 +41,55 @@ namespace SimpleC.Lexing
             {
                 skip(CharType.WhiteSpace);
                 var _peekType = peekType();
+                int startColumn = currentColumn;
 
                 switch (_peekType)
                 {
-                    case CharType.Alpha: // Identificadores y palabras clave
+                    case CharType.Alpha:
                         readToken(builder, CharType.AlphaNumeric);
                         string s = builder.ToString();
-
-                        if (Keywords.Contains(s))
-                        {
-                            tokens.Add(new KeywordToken(s));
-                        }
-                        else
-                        {
-                            tokens.Add(new IdentifierToken(s));
-                        }
+                        tokens.Add(Keywords.Contains(s) ? new KeywordToken(s, currentLine, startColumn) : new IdentifierToken(s, currentLine, startColumn));
                         builder.Clear();
                         break;
-
-                    case CharType.Numeric: // Números
+                    case CharType.Numeric:
                         bool hasDecimal = readNumber(builder);
-                        if (hasDecimal)
-                        {
-                            tokens.Add(new FloatLiteralToken(builder.ToString()));
-                        }
-                        else
-                        {
-                            tokens.Add(new NumberLiteralToken(builder.ToString()));
-                        }
+                        tokens.Add(hasDecimal ? new FloatLiteralToken(builder.ToString(), currentLine, startColumn) : new NumberLiteralToken(builder.ToString(), currentLine, startColumn));
                         builder.Clear();
                         break;
-
-                    case CharType.Operator: // Operadores
+                    case CharType.Operator:
                         readToken(builder, CharType.Operator);
-                        tokens.Add(new OperatorToken(builder.ToString()));
+                        tokens.Add(new OperatorToken(builder.ToString(), currentLine, startColumn));
                         builder.Clear();
                         break;
-
                     case CharType.OpenBrace:
-                        tokens.Add(new OpenBraceToken(next().ToString()));
+                        tokens.Add(new OpenBraceToken(next().ToString(), currentLine, startColumn));
                         break;
-
                     case CharType.CloseBrace:
-                        tokens.Add(new CloseBraceToken(next().ToString()));
+                        tokens.Add(new CloseBraceToken(next().ToString(), currentLine, startColumn));
                         break;
-
                     case CharType.ArgSeperator:
-                        tokens.Add(new ArgSeperatorToken(next().ToString()));
+                        tokens.Add(new ArgSeperatorToken(next().ToString(), currentLine, startColumn));
                         break;
-
                     case CharType.StatementSeperator:
-                        tokens.Add(new StatementSperatorToken(next().ToString()));
+                        tokens.Add(new StatementSperatorToken(next().ToString(), currentLine, startColumn));
                         break;
-
                     case CharType.SingleLineComment:
                         skipSingleLineComment();
                         break;
-
                     case CharType.MultiLineComment:
                         skipMultiLineComment();
                         break;
-
                     case CharType.StringDelimiter:
-                        tokens.Add(readStringLiteral());
+                        tokens.Add(readStringLiteral(startColumn));
                         break;
-
                     case CharType.CharDelimiter:
-                        tokens.Add(readCharLiteral());
+                        tokens.Add(readCharLiteral(startColumn));
                         break;
-
                     case CharType.Preprocessor:
                         handlePreprocessor(tokens);
                         break;
-
                     default:
-                        throw new Exception($"El tokenizer encontró un carácter no identificable: '{peek()}' en la línea {currentLine}, posición {currentPosition}");
+                        throw new Exception($"El tokenizer encontró un carácter no identificable: '{peek()}' en la línea {currentLine}, posición {currentColumn}");
                 }
             }
 
@@ -130,18 +104,18 @@ namespace SimpleC.Lexing
 
             if (directive.StartsWith("#"))
             {
-                tokens.Add(new PreprocessorToken("#"));
+                tokens.Add(new PreprocessorToken("#", currentLine, currentColumn));
 
                 string keyword = directive.Substring(1); // Remover el #
                 if (!string.IsNullOrEmpty(keyword))
-                    tokens.Add(new IdentifierToken(keyword));
+                    tokens.Add(new IdentifierToken(keyword, currentLine, currentColumn));
 
                 skip(CharType.WhiteSpace);
 
                 // Manejar <stdio.h>
                 if (peek() == '<')
                 {
-                    tokens.Add(new OperatorToken("<"));
+                    tokens.Add(new OperatorToken("<", currentLine, currentColumn));
                     next(); // Saltar '<'
 
                     builder.Clear();
@@ -151,19 +125,19 @@ namespace SimpleC.Lexing
                     }
 
                     if (eof())
-                        throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentPosition}: #include sin '>' de cierre.");
+                        throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentColumn}: #include sin '>' de cierre.");
 
                     if (peek() != '>')
-                        throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentPosition}: Se esperaba un '>' después del nombre de la librería.");
+                        throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentColumn}: Se esperaba un '>' después del nombre de la librería.");
 
-                    tokens.Add(new LibraryToken(builder.ToString())); // Nombre de la libreria o archivo
-                    tokens.Add(new OperatorToken(">"));
+                    tokens.Add(new LibraryToken(builder.ToString(), currentLine, currentColumn)); // Nombre de la libreria o archivo
+                    tokens.Add(new OperatorToken(">", currentLine, currentColumn));
                     next(); // Saltar '>'
                 }
                 // Manejar "libreria.h"
                 else if (peek() == '"')
                 {
-                    tokens.Add(new OperatorToken("\""));
+                    tokens.Add(new OperatorToken("\"", currentLine, currentColumn));
                     next(); // Saltar '"'
 
                     builder.Clear();
@@ -173,124 +147,33 @@ namespace SimpleC.Lexing
                     }
 
                     if (eof())
-                        throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentPosition}: #include sin '\"' de cierre.");
+                        throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentColumn}: #include sin '\"' de cierre.");
 
                     if (peek() != '"')
-                        throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentPosition}: Se esperaba un '\"' después del nombre de la librería.");
+                        throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentColumn}: Se esperaba un '\"' después del nombre de la librería.");
 
-                    tokens.Add(new LibraryToken(builder.ToString())); // Nombre de la libreria o archivo
-                    tokens.Add(new OperatorToken("\""));
+                    tokens.Add(new LibraryToken(builder.ToString(), currentLine, currentColumn)); // Nombre de la libreria o archivo
+                    tokens.Add(new OperatorToken("\"", currentLine, currentColumn));
                     next(); // Saltar '"'
                 }
                 else
                 {
-                    throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentPosition}: #include debe tener una apertura de '<' o '\"' para el archivo.");
+                    throw new ParsingException($"Error de sintaxis en la línea {currentLine}, posición {currentColumn}: #include debe tener una apertura de '<' o '\"' para el archivo.");
                 }
 
                 return;
             }
 
-            throw new ParsingException($"Directiva de preprocesador desconocida en la línea {currentLine}, posición {currentPosition}: {directive}");
+            throw new ParsingException($"Directiva de preprocesador desconocida en la línea {currentLine}, posición {currentColumn}: {directive}");
         }
-
-
-        private void HandleNewLine()
-        {
-            currentLine++; // Aumenta la cuenta de líneas
-            currentPosition = 1; // Reinicia la posición en la línea
-
-            // Si el salto de línea es '\r\n', avanzamos un carácter más
-            if (!eof(1) && peek() == '\r' && Code[readingPosition + 1] == '\n')
-            {
-                readingPosition++; // Saltar el '\n' adicional
-            }
-        }
-
-
-        private bool readNumber(StringBuilder builder)
-        {
-            bool hasDecimalPoint = false;
-
-            while (!eof() && (peekType().HasFlag(CharType.Numeric) || peek() == '.'))
-            {
-                if (peek() == '.')
-                {
-                    if (hasDecimalPoint) break; // Si ya había un punto, detener
-                    hasDecimalPoint = true;
-                }
-                builder.Append(next()); // Agregar el carácter al token
-                currentPosition++; // Incrementar la posición en la línea
-            }
-
-            return hasDecimalPoint;
-        }
-
-        private Token readCharLiteral()
-        {
-            char delimiter = next(); // Consumimos el delimitador de apertura (')
-            currentPosition++;
-
-            if (eof()) // Verificamos si el archivo terminó inesperadamente
-                throw new Exception($"Fin de archivo inesperado al leer un carácter en la línea {currentLine}, posición {currentPosition}.");
-
-            char charValue = next(); // Leemos el carácter dentro del delimitador
-            currentPosition++;
-
-            if (eof() || next() != delimiter) // Verificamos si el siguiente carácter es el delimitador de cierre
-                throw new Exception($"Literal de carácter mal formado. Se esperaba un delimitador de cierre en la línea {currentLine}, posición {currentPosition}.");
-
-            return new CharLiteralToken(charValue);
-        }
-
-        private Token readStringLiteral()
-        {
-            var builder = new StringBuilder();
-
-            // Verificar que haya una comilla de apertura
-            if (peek() != '"')
-                throw new Exception($"Error: Se esperaba una comilla de apertura (\"), pero no se encontró en la línea {currentLine}, posición {currentPosition}.");
-
-            next(); // Saltar la comilla inicial
-            currentPosition++; // Incrementar la posición
-
-            while (!eof())
-            {
-                char currentChar = peek();
-
-                // Si encontramos la comilla de cierre, salimos del bucle
-                if (currentChar == '"')
-                {
-                    next(); // Saltar la comilla de cierre
-                    currentPosition++; // Incrementar la posición
-                    break;
-                }
-
-                // Si encontramos un salto de línea antes de la comilla de cierre, reportamos un error
-                if (currentChar == '\n')
-                {
-                    throw new Exception($"Error: Las cadenas literales no pueden contener saltos de línea en la línea {currentLine}, posición {currentPosition}.");
-                }
-
-                builder.Append(next()); // Añadir el carácter a la cadena
-                currentPosition++; // Incrementar la posición
-            }
-
-            // Si llegamos al final sin encontrar la comilla de cierre, es un error
-            if (eof())
-                throw new Exception($"Error: Se esperaba una comilla de cierre para la cadena en la línea {currentLine}, posición {currentPosition}.");
-
-            // Retornar el token con el valor de la cadena
-            return new StringToken(builder.ToString());
-        }
-
 
         private void skipSingleLineComment()
         {
             while (!eof() && peek() != '\n')
             {
                 next();
-                currentPosition++;
             }
+            HandleNewLine();
         }
 
         private void skipMultiLineComment()
@@ -299,12 +182,48 @@ namespace SimpleC.Lexing
             {
                 if (peek() == '*' && next() == '/')
                 {
-                    next(); // Saltar el '/'
+                    next();
                     break;
                 }
+                if (peek() == '\n') HandleNewLine();
                 next();
-                currentPosition++;
             }
+        }
+
+        private bool readNumber(StringBuilder builder)
+        {
+            bool hasDecimalPoint = false;
+            while (!eof() && (peekType().HasFlag(CharType.Numeric) || peek() == '.'))
+            {
+                if (peek() == '.')
+                {
+                    if (hasDecimalPoint) break;
+                    hasDecimalPoint = true;
+                }
+                builder.Append(next());
+            }
+            return hasDecimalPoint;
+        }
+
+        private Token readStringLiteral(int startColumn)
+        {
+            next();
+            var builder = new StringBuilder();
+            while (!eof() && peek() != '"')
+            {
+                builder.Append(next());
+            }
+            next();
+            return new StringToken(builder.ToString(), currentLine, startColumn);
+        }
+
+        private Token readCharLiteral(int startColumn)
+        {
+            next();
+            if (eof()) throw new Exception($"Fin de archivo inesperado al leer un carácter en línea {currentLine}, columna {currentColumn}");
+            char charValue = next();
+            if (eof() || next() != '\'') throw new Exception($"Literal de carácter mal formado en línea {currentLine}, columna {currentColumn}");
+            return new CharLiteralToken(charValue.ToString(), currentLine, startColumn);
         }
 
         private void readToken(StringBuilder builder, CharType typeToRead)
@@ -312,7 +231,6 @@ namespace SimpleC.Lexing
             while (!eof() && peekType().HasAnyFlag(typeToRead))
             {
                 builder.Append(next());
-                currentPosition++; // Incrementar la posición de la línea
             }
         }
 
@@ -329,6 +247,17 @@ namespace SimpleC.Lexing
             }
         }
 
+        private void HandleNewLine()
+        {
+            currentLine++; // Aumenta la cuenta de líneas
+            currentColumn = 1; // Reinicia la posición en la línea
+
+            // Si el salto de línea es '\r\n', avanzamos un carácter más
+            if (!eof(1) && peek() == '\r' && Code[readingPosition + 1] == '\n')
+            {
+                readingPosition++; // Saltar el '\n' adicional
+            }
+        }
 
         private CharType peekType() => charTypeOf(peek());
 
@@ -378,8 +307,8 @@ namespace SimpleC.Lexing
                     return CharType.StringDelimiter;
                 case '\'':
                     return CharType.CharDelimiter;
-                case '\t':  
-                    return CharType.LineSpace; 
+                case '\t':
+                    return CharType.LineSpace;
 
             }
 
