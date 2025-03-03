@@ -1,19 +1,18 @@
-﻿using SimpleC.CodeGeneration;
+﻿using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
-    class NumberLiteralNode : ExpressionNode
+    internal class NumberLiteralNode : StatementSequenceNode
     {
-        public double Value { get; private set; } // Cambiamos int por double
+        public int Value { get; }
 
-        public NumberLiteralNode(double value) // Cambiamos el parámetro a double
+        public NumberLiteralNode(int number) 
         {
-            Value = value;
-        }
+            Value = number;
 
-        public override void EmitCode(CodeEmitter emitter)
-        {
-           
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine($"Entero: {Value}");
+            Console.ResetColor();
         }
     }
 }

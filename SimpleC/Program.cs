@@ -1,66 +1,93 @@
-﻿using SimpleC.CodeGeneration;
-using SimpleC.Lexing;
+﻿using SimpleC.Lexing;
 using SimpleC.Parsing;
-using System;
+using System.Text;
 
 namespace SimpleC
 {
     class Program
     {
+        const string VERSION = "1.0.0";
+        const string AUTHOR = "Desarrollado por AvalonTM, Scarleth Arroyo";
+        const string DESCRIPTION = "Compilador para la clase de Autómatas del Instituto Tecnológico de Ensenada (ITE)";
+
         static void Main(string[] args)
         {
-            string code = @"
-#include <stdio.h>
-#include ""myheader.h""
+            PrintHeader();
 
-int a = 5;
+            if (args.Length == 0)
+            {
+                PrintUsage();
+                return;
+            }
 
-int func(int b)
-{
-    int c = (5*b)+7;
-    return c;
-}
+            switch (args[0].ToLower())
+            {
+                case "compile":
+                    if (args.Length < 2)
+                    {
+                        Console.WriteLine("Error: Debe especificar un archivo para compilar.");
+                        return;
+                    }
+                    Compile(args[1]);
+                    break;
 
-int main()
-{
-    a = 6;
-    func(4);
+                case "version":
+                    Console.WriteLine($"SimpleC versión {VERSION}\n{AUTHOR}\n{DESCRIPTION}");
+                    break;
 
-    return a*2;
-}";
+                case "help":
+                    PrintUsage();
+                    break;
 
-            //lexing
+                default:
+                    Console.WriteLine("Comando no reconocido. Use 'simplec help' para ver las opciones.");
+                    break;
+            }
+        }
 
+        static void PrintHeader()
+        {
+            Console.WriteLine("================================");
+            Console.WriteLine("        SimpleC Compiler         ");
+            Console.WriteLine("================================");
+        }
+
+        static void PrintUsage()
+        {
+            Console.WriteLine("Uso:");
+            Console.WriteLine("  simplec compile <archivo>   Compila el archivo especificado");
+            Console.WriteLine("  simplec version             Muestra la versión y autor");
+            Console.WriteLine("  simplec help                Muestra esta ayuda");
+        }
+
+        static void Compile(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine($"Error: El archivo '{filePath}' no existe.");
+                return;
+            }
+
+            Console.WriteLine($"Compilando '{filePath}'...");
+            string code = File.ReadAllText(filePath, Encoding.UTF8);
+
+            // Lexing
             var lexer = new Tokenizer(code);
             var tokens = lexer.Tokenize();
 
-            foreach (var token in tokens)
-            {
-                Console.WriteLine($"  {token.Content}  ");
-            }
+            Console.WriteLine("\nAnalizando...");
 
-            Console.WriteLine();
-            Console.WriteLine();
-
-            //parsing
             var parser = new Parser(tokens);
             var ast = parser.ParseToAst();
 
-            // Code generation
-            var emitter = new CodeEmitter();
-            ast.EmitCode(emitter);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\nAST generado :)");
+            Console.ResetColor();
 
-            // Obtener y mostrar el código de máquina generado
-            var emittedCode = emitter.GetEmittedCode();
-            using (var writer = new StreamWriter("output.asm"))
+            foreach (var node in ast.SubNodes)
             {
-                foreach (var instruction in emittedCode)
-                {
-                    writer.WriteLine($"{instruction.OpCode} {instruction.ByteArg1} {instruction.ByteArg2}");
-                }
+                Console.WriteLine(node.ToString());
             }
-
-            Console.ReadKey(false);
         }
     }
 }

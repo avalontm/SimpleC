@@ -1,6 +1,4 @@
-﻿using SimpleC.CodeGeneration;
-
-namespace SimpleC.Types.AstNodes
+﻿namespace SimpleC.Types.AstNodes
 {
     class StatementSequenceNode : AstNode
     {
@@ -29,9 +27,5 @@ namespace SimpleC.Types.AstNodes
             subNodes.Add(node);
         }
 
-        public override void EmitCode(CodeEmitter emitter)
-        {
-            emitter.Emit(OpCode.Nop);
-        }
     }
 }

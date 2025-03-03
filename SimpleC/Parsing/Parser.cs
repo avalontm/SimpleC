@@ -5,17 +5,12 @@ using System.Diagnostics;
 
 namespace SimpleC.Parsing
 {
-    /// <summary>
-    /// Parser for the SimpleC language.
-    /// </summary>
     class Parser
     {
         public Token[] Tokens { get; private set; }
 
         private int readingPosition;
         private Stack<StatementSequenceNode> scopes;
-
-        private static readonly KeywordType[] typeKeywords = { KeywordType.Int, KeywordType.Void };
 
         public Parser(Token[] tokens)
         {
@@ -35,154 +30,112 @@ namespace SimpleC.Parsing
                 {
                     var keyword = (KeywordToken)next();
 
-                    if (scopes.Count == 1) //we are a top level, the only valid keywords are variable types, starting a variable or function definition
+                    if (scopes.Count == 1) // Estamos en el nivel superior, las únicas palabras clave válidas son los tipos de variables, el inicio de una variable o la definición de una función.
+
                     {
                         if (keyword.IsTypeKeyword)
                         {
                             var varType = keyword.ToVariableType();
-                            //it must be followed by a identifier:
-                            var name = readToken<IdentifierToken>();
-                            //so see what it is (function or variable):
-                            Token lookahead = peek();
-                            if (lookahead is OperatorToken && (((OperatorToken)lookahead).OperatorType == OperatorType.Assignment) || lookahead is StatementSperatorToken) //variable declaration
-                            {
-                                if (lookahead is OperatorToken)
-                                    next(); //skip the "="
-                                scopes.Peek().AddStatement(new VariableDeclarationNode(varType, name.Content, ExpressionNode.CreateFromTokens(readUntilStatementSeperator())));
-                            }
-                            else if (lookahead is OpenBraceToken && (((OpenBraceToken)lookahead).BraceType == BraceType.Round)) //function definition
-                            {
-                                var func = new FunctionDeclarationNode(name.Content);
-                                scopes.Peek().AddStatement(func); //add the function to the old (root) scope...
-                                scopes.Push(func); //...and set it a the new scope!
-                                //Read the argument list
-                                next(); //skip the opening brace
-                                while (!(peek() is CloseBraceToken && ((CloseBraceToken)peek()).BraceType == BraceType.Round)) //TODO: Refactor using readUntilClosingBrace?
-                                {
-                                    var argType = readToken<KeywordToken>();
-                                    if (!argType.IsTypeKeyword)
-                                        throw new ParsingException("Expected type keyword!");
-                                    var argName = readToken<IdentifierToken>();
-                                    func.AddParameter(new ParameterDeclarationNode(argType.ToVariableType(), argName.Content));
-                                    if (peek() is ArgSeperatorToken) //TODO: Does this allow (int a int b)-style functions? (No arg-seperator!)
-                                        next(); //skip the sperator
-                                }
-                                next(); //skip the closing brace
-                                var curlyBrace = readToken<OpenBraceToken>();
-                                if (curlyBrace.BraceType != BraceType.Curly)
-                                    throw new ParsingException("Wrong brace type found!");
-                            }
-                            else
-                                throw new Exception("The parser encountered an unexpected token.");
-                        }
-                        else if (keyword.KeywordType == KeywordType.Include)
-                        {
-                            // Manejar la directiva #include
-                            var includeToken = readToken<LibraryToken>();
-                            scopes.Peek().AddStatement(new IncludeDirectiveNode(includeToken.Content));
-                        }
-                        else
-                            throw new ParsingException("Found non-type keyword on top level.");
-                    }
-                    else //we are in a nested scope
-                    {
-                        //TODO: Can we avoid the code duplication from above?
-                        if (keyword.IsTypeKeyword) //local variable declaration!
-                        {
-                            var varType = keyword.ToVariableType();
-                            //it must be followed by a identifier:
-                            var name = readToken<IdentifierToken>();
-                            //so see what it is (function or variable):
-                            Token lookahead = peek();
-                            if (lookahead is OperatorToken && (((OperatorToken)lookahead).OperatorType == OperatorType.Assignment) || lookahead is StatementSperatorToken) //variable declaration
-                            {
-                                if (lookahead is OperatorToken)
-                                    next(); //skip the "="
-                                scopes.Peek().AddStatement(new VariableDeclarationNode(varType, name.Content, ExpressionNode.CreateFromTokens(readUntilStatementSeperator())));
-                            }
+                            var name = readToken<IdentifierToken>(); //Debe estar seguido por un identificador.
+
+                            scopes.Push(new KeywordNode(varType, name.Content));
+
+                            scopes.Pop();
                         }
                         else
                         {
-                            switch (keyword.KeywordType)
-                            {
-                                case KeywordType.Return:
-                                    scopes.Peek().AddStatement(new ReturnStatementNode(ExpressionNode.CreateFromTokens(readUntilStatementSeperator())));
-                                    break;
-                                case KeywordType.If:
-                                    var @if = new IfStatementNode(ExpressionNode.CreateFromTokens(readUntilClosingBrace()));
-                                    scopes.Peek().AddStatement(@if);
-                                    scopes.Push(@if);
-                                    break;
-                                case KeywordType.While:
-                                    var @while = new WhileLoopNode(ExpressionNode.CreateFromTokens(readUntilClosingBrace()));
-                                    scopes.Peek().AddStatement(@while);
-                                    scopes.Push(@while);
-                                    break;
-                                default:
-                                    throw new ParsingException("Unexpected keyword type.");
-                            }
+                            throw new ParsingException($"Se encontró una palabra clave no relacionada con un tipo en el nivel superior., `{peek().Content}`");
                         }
                     }
+
                 }
-                else if (peek() is IdentifierToken && scopes.Count > 1) //in nested scope
+                else // Top 0 (Global)
                 {
-                    var name = readToken<IdentifierToken>();
-                    if (peek() is OperatorToken && ((OperatorToken)peek()).OperatorType == OperatorType.Assignment) //variable assignment
+                    Debug.WriteLine($"Peek: {peek().GetType()}");
+                    if (peek() is PreprocessorToken preprocessorToken)
                     {
-                        next(); //skip the "="
-                        scopes.Peek().AddStatement(new VariableAssingmentNode(name.Content, ExpressionNode.CreateFromTokens(readUntilStatementSeperator())));
+                        var tokens = readUntilChar(new string[] { ">", "\"" });
+                        scopes.Push(new PreprocessorNode(tokens));
                     }
-                    else //lone expression (incl. function calls!)
-                        scopes.Peek().AddStatement(ExpressionNode.CreateFromTokens(new[] { name }.Concat(readUntilStatementSeperator()))); //don't forget the name here!
-                }
-                else if (peek() is CloseBraceToken)
-                {
-                    var brace = readToken<CloseBraceToken>();
-                    if (brace.BraceType != BraceType.Curly)
-                        throw new ParsingException("Wrong brace type found!");
-                    scopes.Pop(); //Scope has been closed!
-                }
-                else if (peek() is PreprocessorToken) // Manejar directivas de preprocesador
-                {
-                    var preprocessorToken = readToken<PreprocessorToken>();
-                    if (preprocessorToken.Content == "#")
+                    else if (peek() is IdentifierToken identifierToken)
                     {
-                        var keyword = readToken<IdentifierToken>();
-                        if (keyword.Content == "include")
-                        {
-                            Token startToken = readToken<OperatorToken>();
-                            if (startToken.Content == "<" || startToken.Content == "\"")
-                            {
-                                var includeToken = readToken<LibraryToken>();
-                                Token endToken = readToken<OperatorToken>();
-                                if ((startToken.Content == "<" && endToken.Content == ">") || (startToken.Content == "\"" && endToken.Content == "\""))
-                                {
-                                    scopes.Peek().AddStatement(new IncludeDirectiveNode(includeToken.Content));
-                                }
-                                else
-                                {
-                                    throw new ParsingException("Mismatched include delimiters.");
-                                }
-                            }
-                            else
-                            {
-                                throw new ParsingException("Expected '<' or '\"' after #include.");
-                            }
-                        }
-                        else
-                        {
-                            throw new ParsingException($"Unknown preprocessor directive: {keyword.Content}");
-                        }
+                        scopes.Push(new IdentifierNode(next().Content));
                     }
+                    else if (peek() is OperatorToken operatorToken)
+                    {
+                        scopes.Push(new OperatorNode(next().Content));
+                    }
+                    else if (peek() is NumberLiteralToken numberLiteralToken)
+                    {
+                        scopes.Push(new NumberLiteralNode(int.Parse(next().Content)));
+                    }
+                    else if (peek() is StatementSperatorToken statementSperatorToken)
+                    {
+                        scopes.Push(new StatementSperatorNode(next().Content));
+                    }
+                    else if (peek() is FloatLiteralToken floatLiteralToken)
+                    {
+                        scopes.Push(new FloatLiteralNode(float.Parse(next().Content)));
+                    }
+                    else if (peek() is CharLiteralToken charLiteralToken)
+                    {
+                        scopes.Push(new CharLiteralNode(next().Content.ToCharArray()[0]));
+                    }
+                    else if (peek() is StringToken stringToken)
+                    {
+                        scopes.Push(new StringNode(next().Content));
+                    }
+                    else if (peek() is OpenBraceToken openBraceToken)
+                    {
+                        scopes.Push(new OpenBraceNode(next().Content));
+                    }
+                    else if (peek() is CloseBraceToken closeBraceToken)
+                    {
+                        scopes.Push(new CloseBraceNode(next().Content));
+                     
+                    }
+
+                    scopes.Pop();
                 }
-                else
-                    throw new ParsingException($"The parser ran into an unexpeted token: {peek().Content}");
             }
 
             if (scopes.Count != 1)
-                throw new ParsingException("The scopes are not correctly nested.");
+                throw new ParsingException("Los scopes no están correctamente anidados.");
 
             return (ProgramNode)scopes.Pop();
+        }
+
+        private IEnumerable<Token> readUntilChar(string[] chars)
+        {
+            int quoteCount = 0;  // Contador de comillas dobles (") encontradas
+
+            // Lee hasta encontrar un token cuyo contenido esté en el array de caracteres
+            while (!eof())
+            {
+                var token = next(); // Obtiene el siguiente token
+                yield return token; // Devuelve el token actual
+
+                // Si encontramos un " o cualquier otro carácter en el array
+                if (chars.Contains(token.Content))
+                {
+                    // Si es un " (comillas dobles), aumentamos el contador
+                    if (token.Content == "\"")
+                    {
+                        quoteCount++; // Incrementa el contador solo si es una comilla doble
+
+                        // Si es el segundo " encontrado, terminamos el proceso
+                        if (quoteCount == 2)
+                        {
+                            yield break; // Detiene la ejecución una vez encontramos el segundo "
+                        }
+                    }
+                    else
+                    {
+                        // Para otros caracteres como >, se detiene en el primer encuentro
+                        yield break;
+                    }
+                }
+            }
         }
 
         private IEnumerable<Token> readTokenSeqence(params Type[] expectedTypes)

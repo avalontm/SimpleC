@@ -2,11 +2,11 @@
 {
     class CharLiteralToken : Token
     {
-        public char Value { get; }
+        public string CharValue { get; }
 
         public CharLiteralToken(char value) : base(value.ToString())
         {
-            Value = value;
+            CharValue = value.ToString();
         }
     }
 

@@ -1,24 +1,20 @@
-﻿using SimpleC.CodeGeneration;
-using SimpleC.Types.AstNodes;
-using SimpleC.Types.Tokens;
+﻿using SimpleC.Types.Tokens;
 
-namespace SimpleC.Types
+namespace SimpleC.Types.AstNodes
 {
-    /// <summary>
-    /// Nodo que representa una palabra clave en el AST.
-    /// </summary>
-    class KeywordNode : ExpressionNode
+    internal class KeywordNode : StatementSequenceNode
     {
-        public string Keyword { get; }
+        public VariableType Variable { get; }
+        public string Name { get; }
 
-        public KeywordNode(string keyword)
+        public KeywordNode(VariableType varType, string name)
         {
-            Keyword = keyword;
-        }
+            Variable = varType;
+            Name = name;
 
-        public override void EmitCode(CodeEmitter emitter)
-        {
-     
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"Keyword: {Variable} {Name}");
+            Console.ResetColor();
         }
     }
 }

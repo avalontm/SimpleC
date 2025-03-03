@@ -2,11 +2,11 @@
 {
     class StringToken : Token
     {
-        public string Content { get; private set; }
+        public string StringValue { get; private set; }
 
         public StringToken(string content) : base(content) 
-        { 
-            Content = content;
+        {
+            StringValue = content;
         }
     }
 

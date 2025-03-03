@@ -2,11 +2,11 @@
 {
     class CharPointerToken : Token
     {
-        public char Value { get; }
+        public string PointerValue { get; }
 
-        public CharPointerToken(char value) : base(value.ToString())
+        public CharPointerToken(string value) : base(value)
         {
-            Value = value;
+            PointerValue = value;
         }
     }
 }

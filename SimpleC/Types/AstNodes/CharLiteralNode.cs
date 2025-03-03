@@ -1,19 +1,18 @@
-﻿using SimpleC.CodeGeneration;
+﻿using System.Xml.Linq;
 
 namespace SimpleC.Types.AstNodes
 {
-    class CharLiteralNode : ExpressionNode
+    internal class CharLiteralNode : StatementSequenceNode
     {
-        public string Value { get; }
+        public char Value { get; }
 
-        public CharLiteralNode(string value)
+        public CharLiteralNode(char value)
         {
             Value = value;
-        }
 
-        public override void EmitCode(CodeEmitter emitter)
-        {
-
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Char: '{Value}'");
+            Console.ResetColor();
         }
     }
 }

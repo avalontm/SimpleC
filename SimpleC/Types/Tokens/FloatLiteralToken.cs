@@ -2,11 +2,11 @@
 
 namespace SimpleC.Types
 {
-    class DecimalLiteralToken : Token
+    class FloatLiteralToken : Token
     {
         public float Number { get; }
 
-        public DecimalLiteralToken(string number) : base(number)
+        public FloatLiteralToken(string number) : base(number)
         {
             Number = float.Parse(number, System.Globalization.CultureInfo.InvariantCulture);
         }

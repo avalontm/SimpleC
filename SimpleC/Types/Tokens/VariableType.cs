@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SimpleC.Types.Tokens
+﻿namespace SimpleC.Types.Tokens
 {
     enum VariableType
     {
@@ -17,5 +11,6 @@ namespace SimpleC.Types.Tokens
         String,
         CharPointer,
         CharArray,
+        Return,
     }
 }
