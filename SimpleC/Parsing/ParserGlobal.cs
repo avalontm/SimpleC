@@ -1,4 +1,5 @@
 ﻿using SimpleC.Types.AstNodes;
+using System.Diagnostics;
 
 namespace SimpleC.Parsing
 {
@@ -12,7 +13,7 @@ namespace SimpleC.Parsing
             {
                 return;
             }
-
+            Debug.WriteLine($"Global Register: {key}");
             Global.Add(key, node);
         }
 

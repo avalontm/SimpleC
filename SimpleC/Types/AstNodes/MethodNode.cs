@@ -56,6 +56,19 @@ namespace SimpleC.Types.AstNodes
             ParserGlobal.Register(Name, this);
 
             Console.WriteLine(this.ToString());
+            Generate();
+        }
+
+        public override void Generate()
+        {
+            if (Type == VariableType.Printf)
+            {
+                LLVMSharp.Print(string.Join(" ", Parameters));
+            }
+            else
+            {
+                LLVMSharp.Method(Type, Name);
+            }
         }
 
         public override string ToString()

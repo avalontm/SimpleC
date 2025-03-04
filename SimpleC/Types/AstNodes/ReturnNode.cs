@@ -10,11 +10,24 @@
 
             while (token.MoveNext())
             {
-                Value += $"{token.Current.Content} ";
+                if (token.Current != null)
+                {
+                    if (!token.Current.Content.Contains(";"))
+                    {
+                        Value += $"{token.Current.Content} ";
+                    }
+                }
             }
 
             Console.WriteLine(this.ToString());
+            Generate();
         }
+
+        public override void Generate()
+        {
+            LLVMSharp.GenerateReturn(Value);
+        }
+
 
         public override string ToString()
         {

@@ -1,7 +1,7 @@
-﻿using SimpleC.Lexing;
-using SimpleC.Types;
+﻿using SimpleC.Types;
 using SimpleC.Types.AstNodes;
 using SimpleC.Types.Tokens;
+using System;
 using System.Diagnostics;
 using System.Xml.Linq;
 
@@ -13,6 +13,7 @@ namespace SimpleC.Parsing
 
         private int readingPosition;
         private Stack<StatementSequenceNode> scopes;
+        private bool isRoot = true;
 
         public Parser(Token[] tokens)
         {
@@ -24,8 +25,6 @@ namespace SimpleC.Parsing
         public ProgramNode ParseToAst()
         {
             scopes.Push(new ProgramNode());
-            VariableType varType;
-            Token? name = null;
 
             while (!eof())
             {
@@ -42,13 +41,10 @@ namespace SimpleC.Parsing
                     {
                         if (keyword.IsTypeKeyword)
                         {
-                            varType = keyword.ToVariableType();
-                            name = readToken<IdentifierToken>();
-                            if(name == null)
-                            {
-                                name = next();
-                            }
-                            //vamos a comprobar las palabras reservadas que sean de asingnaciones (int, float, char, bool, stirng)
+                            VariableType varType = keyword.ToVariableType();
+                            Token name = readToken<IdentifierToken>();
+                            Debug.WriteLine($"keyword: {name}");
+                            //vamos a comprobar las palabras reservadas que sean de asignaciones (int, float, char, bool, string)
                             GetKeyword(varType, name);
                         }
                         else
@@ -59,32 +55,29 @@ namespace SimpleC.Parsing
                 }
                 else if (peek() is IdentifierToken identifierToken)
                 {
-                    var token = next();
-                    if (!KeywordToken.IsKeyword(token.Content))
+                    if (!KeywordToken.IsKeyword(identifierToken.Content))
                     {
-                        if (ParserGlobal.Verify(token.Content))
+                        if (ParserGlobal.Verify(identifierToken.Content))
                         {
-                            var node = ParserGlobal.Get(token.Content);
+                            var node = ParserGlobal.Get(identifierToken.Content);
                             if (node is VariableNode variableNode)
                             {
-                                varType = variableNode.Type;
-                                GetKeyword(varType, name);
+                                GetKeyword(variableNode.Type, identifierToken);
                             }
                             else if (node is MethodNode methodNode)
                             {
-                                varType = methodNode.Type;
-                                GetKeyword(varType, name);
+                                GetKeyword(methodNode.Type, identifierToken);
                             }
 
                             continue;
                         }
-                        throw new ParsingException($"El identificador: {token.Content} No se encontro.: en línea {token.Line}, columna {token.Column}");
+                        throw new ParsingException($"El identificador: {identifierToken.Content} No se encontró.: en línea {identifierToken.Line}, columna {identifierToken.Column}");
                     }
-                    scopes.Push(new IdentifierNode(token.Content));
-                    scopes.Pop();
+                    scopes.Push(new IdentifierNode(identifierToken.Content));
                 }
                 else
                 {
+                    Debug.WriteLine($"Other: {peek()}");
                     if (peek() is PreprocessorToken preprocessorToken)
                     {
                         var tokens = readUntilChar(new string[] { ">", "\"" });
@@ -122,9 +115,8 @@ namespace SimpleC.Parsing
                     {
                         scopes.Push(new CloseBraceNode(next().Content));
                     }
-
-                    scopes.Pop();
                 }
+                scopes.Pop();
             }
 
             if (scopes.Count != 1)
@@ -135,6 +127,7 @@ namespace SimpleC.Parsing
 
         void GetKeyword(VariableType varType, Token name)
         {
+            Console.WriteLine($"GetKeyword: {varType} | {name} | {isRoot}");
             switch (varType)
             {
                 case VariableType.Int:
@@ -156,9 +149,22 @@ namespace SimpleC.Parsing
 
                         var openKey = next();
 
-                        Debug.WriteLine(openKey);
-                        scopes.Push(new MethodNode(varType, name.Content, _parameter));
-                        scopes.Pop();
+                        if (scopes.Count == 1)
+                        {
+                            isRoot = false;
+                            // Estamos en el nivel raíz
+                            var func = new MethodNode(varType, name.Content, _parameter);
+                            scopes.Peek().AddStatement(func);
+                            scopes.Push(func);
+                        }
+                        else
+                        {
+                            isRoot = false;
+                            // Estamos dentro de un ámbito
+                            var func = new MethodNode(varType, name.Content, _parameter);
+                            scopes.Push(func);
+                        }
+
                         return;
                     }
 
@@ -169,8 +175,8 @@ namespace SimpleC.Parsing
                         _parameters.Add(peek());
                     }
 
-                    scopes.Push(new VariableNode(varType, name, _operator, _parameters));
-                    scopes.Pop();
+                    scopes.Push(new VariableNode(varType, name, _operator, _parameters, isRoot));
+
                     break;
                 case VariableType.Void:
                     List<Token> tokens = new List<Token>();
@@ -187,9 +193,28 @@ namespace SimpleC.Parsing
                         tokens.Add(peek());
                     }
                     next();
-
+                    isRoot = true;
                     scopes.Push(new MethodNode(VariableType.Void, name.Content, tokens));
-                    scopes.Pop();
+                    isRoot = false;
+                    break;
+                case VariableType.Printf:
+
+                    tokens = new List<Token>();
+
+                    tokens.Add(peek());
+
+                    while (next().Content != ")")
+                    {
+                        tokens.Add(peek());
+                    }
+
+                    if (peek().Content == ";")
+                    {
+                        tokens.Add(peek());
+                    }
+                    next();
+
+                    scopes.Push(new MethodNode(VariableType.Printf, "printf", tokens));
                     break;
                 case VariableType.Return:
 
@@ -202,16 +227,14 @@ namespace SimpleC.Parsing
                         tokens.Add(peek());
                     }
                     while (next().Content != "}") { }
-
+                
                     scopes.Push(new ReturnNode(tokens));
-                    scopes.Pop();
-
+                    isRoot = true;
                     break;
                 default:
                     scopes.Push(new KeywordNode(varType, name.Content));
-                    scopes.Pop();
-                    break;
 
+                    break;
             }
         }
 

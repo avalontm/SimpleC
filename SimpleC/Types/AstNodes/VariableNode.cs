@@ -1,4 +1,5 @@
-﻿using SimpleC.Parsing;
+﻿using LLVMSharp.Interop;
+using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
 using System.Diagnostics;
 
@@ -10,9 +11,12 @@ namespace SimpleC.Types.AstNodes
         public string Name { get; }
         public string Operator { get; }
         public string Value { get; }
+        bool Root { get; }
 
-        public VariableNode(VariableType type, Token name, Token oper, List<Token> tokens)
+        public VariableNode(VariableType type, Token name, Token oper, List<Token> tokens, bool root)
         {
+            Root = root;
+            Debug.WriteLine($"Operator: {root}");
             Debug.WriteLine($"VariableType: {type}");
             Debug.WriteLine($"Name: {name}");
             Debug.WriteLine($"Operator: {oper.Content}");
@@ -31,10 +35,12 @@ namespace SimpleC.Types.AstNodes
 
             while (token.MoveNext())
             {
-                Value += $"{token.Current.Content} ";
+                if (!token.Current.Content.Contains(";"))
+                {
+                    Value += $"{token.Current.Content} ";
+                }
             }
 
-            if (type == VariableType.String)
             Type = type;
             Name = name.Content;
             Operator = oper.Content;
@@ -42,7 +48,14 @@ namespace SimpleC.Types.AstNodes
             ParserGlobal.Register(Name, this);
 
             Console.WriteLine(this.ToString());
+            Generate();
         }
+
+        public override void Generate()
+        {
+            LLVMSharp.Variable(Type, Name, Value, Root);
+        }
+
 
         public override string ToString()
         {

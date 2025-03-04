@@ -16,6 +16,7 @@
             { "char", KeywordType.Char },
             { "true", KeywordType.True },
             { "false", KeywordType.False },
+            { "printf", KeywordType.Printf },
         };
 
         private static readonly Dictionary<KeywordType, VariableType> keywordTypeToVariableType = new Dictionary<KeywordType, VariableType>
@@ -31,6 +32,7 @@
             { KeywordType.Return, VariableType.Return },
             { KeywordType.True, VariableType.True },
             { KeywordType.False, VariableType.False },
+            { KeywordType.Printf, VariableType.Printf },
         };
 
         public KeywordType KeywordType { get; private set; }

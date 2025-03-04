@@ -1,4 +1,7 @@
-﻿namespace SimpleC.Types.AstNodes
+﻿using LLVMSharp.Interop;
+using System.Diagnostics;
+
+namespace SimpleC.Types.AstNodes
 {
     internal class PreprocessorNode : StatementSequenceNode
     {
@@ -29,13 +32,29 @@
                 IsFile = true;
             }
             _tokens.MoveNext();
-            Library = _tokens.Current.Content;
 
+            if(string.IsNullOrEmpty(_tokens.Current.Content))
+            {
+                throw new ArgumentException("Se esperaba un nombre de la libraria.");
+            }
+            Library = _tokens.Current.Content.ToLower();
 
             //Esperamos hasta movernos hasta el final del los tokens.
-            while (!_tokens.MoveNext()) ;
+            while (!_tokens.MoveNext())
+            {
+                Debug.WriteLine($"token: {_tokens.Current}");
+            }
 
             Console.WriteLine(this.ToString() + "\n");
+            Generate();
+        }
+
+        public override void Generate()
+        {
+            if(Library.Contains("stdio.h"))
+            {
+                LLVMSharp.Declare("printf");
+            }
         }
 
         public override string ToString()

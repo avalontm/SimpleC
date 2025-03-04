@@ -27,5 +27,9 @@
             subNodes.Add(node);
         }
 
+        public virtual void Generate()
+        {
+
+        }
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace SimpleC.Types.Tokens
 {
-    enum VariableType
+    public enum VariableType
     {
         Int,
         Void,
@@ -14,5 +14,6 @@
         Return,
         True,
         False,
+        Printf,
     }
 }

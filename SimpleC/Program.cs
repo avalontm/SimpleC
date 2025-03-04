@@ -71,6 +71,9 @@ namespace SimpleC
             Console.WriteLine($"Compilando '{filePath}'...");
             string code = File.ReadAllText(filePath, Encoding.UTF8);
 
+            //LLVM
+            LLVMSharp.Init();
+
             // Lexing
             var lexer = new Tokenizer(code);
             var tokens = lexer.Tokenize();
@@ -84,6 +87,7 @@ namespace SimpleC
             Console.WriteLine("\nAST generado :)");
             Console.ResetColor();
 
+            LLVMSharp.Generate();
         }
     }
 }

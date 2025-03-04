@@ -15,13 +15,14 @@ namespace SimpleC.Lexing
         private int readingPosition;
         private int currentLine;
         private int currentColumn;
+
         private static readonly HashSet<string> Keywords = new HashSet<string>
         {
             "int", "float", "bool", "void", "return", "char", "string",
             "if", "else", "while", "for", "do", "switch", "case", "default",
             "break", "continue", "goto", "sizeof", "typedef", "struct", "union",
             "enum", "const", "volatile", "static", "extern", "register", "auto",
-            "signed", "unsigned", "short", "long", "double"
+            "signed", "unsigned", "short", "long", "double","printf"
         };
 
         public Tokenizer(string code)
