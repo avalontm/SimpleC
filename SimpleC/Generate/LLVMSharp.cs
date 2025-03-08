@@ -3,6 +3,7 @@ using SimpleC.Types.Tokens;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -67,8 +68,24 @@ namespace SimpleC
             }
             else
             {
-                LLVMValueRef variableValue = globalVariables[str];
-          
+                LLVMValueRef variableValue = null;
+
+                try
+                {
+                    variableValue = variables[str];
+                }
+                catch
+                {
+                    try
+                    {
+                        variableValue = globalVariables[str];
+                    }
+                    catch
+                    {
+                        variableValue = null;
+                    }
+                }
+
                 // Caso 2: Si el parámetro es una variable (int, float, bool, string, etc.)
                 if (variableValue.Handle != IntPtr.Zero)
                 {
@@ -580,17 +597,25 @@ namespace SimpleC
 
             // Guardar el archivo output.ll
             module.PrintToFile(outputLlvmFile);
-            Console.WriteLine($"Archivo LLVM IR generado: {outputLlvmFile}");
 
-            // Compilar el LLVM IR a ejecutable usando clang
-            bool statusCompile = RunProcess("C:\\Program Files\\LLVM\\bin\\clang", $"{outputLlvmFile} -o {outputExeFile}");
+            if (File.Exists(outputLlvmFile))
+            {
+                Console.WriteLine($"Archivo LLVM IR generado: {outputLlvmFile}");
 
-            if (statusCompile)
-            {   
-                // Ejecutar el ejecutable generado
-                RunProcess($"./{outputExeFile}", "");
+                // Compilar el LLVM IR a ejecutable usando clang
+                bool statusCompile = RunProcess("C:\\Program Files\\LLVM\\bin\\clang", $"{outputLlvmFile} -o {outputExeFile}");
+
+                if (statusCompile)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("=============================================");
+                    Console.WriteLine("===========  EJECUTANDO EXE  ================");
+                    Console.WriteLine("=============================================");
+                    Console.WriteLine();
+                    // Ejecutar el ejecutable generado
+                    RunProcess($"./{outputExeFile}", "");
+                }
             }
-
         }
 
         static bool RunProcess(string command, string args)

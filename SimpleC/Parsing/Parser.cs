@@ -43,7 +43,7 @@ namespace SimpleC.Parsing
                         {
                             VariableType varType = keyword.ToVariableType();
                             Token name = readToken<IdentifierToken>();
-                            Debug.WriteLine($"keyword: {name}");
+
                             //vamos a comprobar las palabras reservadas que sean de asignaciones (int, float, char, bool, string)
                             GetKeyword(varType, name);
                         }
@@ -127,7 +127,7 @@ namespace SimpleC.Parsing
 
         void GetKeyword(VariableType varType, Token name)
         {
-            Console.WriteLine($"GetKeyword: {varType} | {name} | {isRoot}");
+            //Console.WriteLine($"GetKeyword: {varType} | {name} | {isRoot}");
             switch (varType)
             {
                 case VariableType.Int:
