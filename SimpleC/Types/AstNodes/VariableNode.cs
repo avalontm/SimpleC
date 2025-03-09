@@ -1,5 +1,4 @@
-﻿using LLVMSharp.Interop;
-using SimpleC.Parsing;
+﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
 using System.Diagnostics;
 
@@ -8,58 +7,103 @@ namespace SimpleC.Types.AstNodes
     internal class VariableNode : StatementSequenceNode
     {
         public VariableType Type { get; }
-        public string Name { get; }
-        public string Operator { get; }
-        public string Value { get; }
-        bool Root { get; }
+        public Token Name { get; }
+        public List<Token> Operators { get; }
+        public List<Token> Values { get; private set; }
+        public bool Root { get; }
 
-        public VariableNode(VariableType type, Token name, Token oper, List<Token> tokens, bool root)
+        public VariableNode(VariableType type, Token name, List<Token> operators, List<Token> tokens, bool root)
         {
             Root = root;
-            Debug.WriteLine($"Operator: {root}");
-            Debug.WriteLine($"VariableType: {type}");
-            Debug.WriteLine($"Name: {name}");
-            Debug.WriteLine($"Operator: {oper.Content}");
+            Values = new List<Token>();
 
-            if (type != VariableType.Int && type != VariableType.Float && type != VariableType.Char && type != VariableType.String && type != VariableType.Bool)
+            if (type != VariableType.Int && type != VariableType.Float &&
+                type != VariableType.Char && type != VariableType.String &&
+                type != VariableType.Bool && type != VariableType.Void)
             {
-                throw new Exception($"Se esperar un tipo de variable ");
-            }
-
-            if(oper.Content != "=")
-            {
-                throw new Exception($"Se esperaba un operador '=': en la línea {oper.Line}, posición {oper.Column}");
-            }
-
-            var token = tokens.GetEnumerator();
-
-            while (token.MoveNext())
-            {
-                if (!token.Current.Content.Contains(";"))
-                {
-                    Value += $"{token.Current.Content} ";
-                }
+                throw new Exception($"Se esperaba un tipo de variable válido");
             }
 
             Type = type;
-            Name = name.Content;
-            Operator = oper.Content;
+            Name = name;
 
-            ParserGlobal.Register(Name, this);
+            // Procesamiento normal de la variable
+            if (operators.Count > 0)
+            {
+                Debug.WriteLine($"VariableName: {Name.Content}");
 
-            Console.WriteLine(this.ToString());
-            Generate();
+                Operators = operators;
+
+                foreach(var token in tokens)
+                {
+                    if (token is not StatementSperatorToken)
+                    {
+                        Values.Add(token);
+                    }
+                }
+
+                ParserGlobal.Register(Name.Content, this);
+                ColorParser.WriteLine(this.ToString());
+                return;
+            }
+            else
+            {
+                // Verificar si esto es una declaración de función (tiene paréntesis después del nombre)
+                if (tokens.Count > 0 && tokens[0].Content == "(")
+                {
+                    Debug.WriteLine($"MethodName: {Name.Content}");
+                    // Encontrar el paréntesis de cierre correspondiente para extraer los parámetros
+                    int parameterEndIndex = FindMatchingParenthesis(tokens);
+
+                    if (parameterEndIndex != -1)
+                    {
+                        List<Token> parameters = tokens.GetRange(0, parameterEndIndex + 1);
+
+                        // Registrar como un método en lugar de una variable
+                        var method = new MethodNode(Type, Name.Content, parameters);
+
+                        ParserGlobal.Register(Name.Content, method);
+                        ColorParser.WriteLine(method.ToString());
+                        return;
+                    }
+                }
+            }
+            
         }
 
-        public override void Generate()
+        private int FindMatchingParenthesis(List<Token> tokens)
         {
-            LLVMSharp.Variable(Type, Name, Value, Root);
-        }
+            int depth = 0;
 
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Content == "(")
+                {
+                    depth++;
+                }
+                else if (tokens[i].Content == ")")
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return i;
+                    }
+                }
+            }
+
+            return -1; // No se encontró un paréntesis de cierre correspondiente
+        }
 
         public override string ToString()
         {
-            return $"{Type} {Name} {Operator} {Value}";
+            List<string> values = new List<string>();
+
+            foreach (var value in Values)
+            {
+                values.Add(ColorParser.GetTokenColor(value));
+            }
+
+            return $"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x=> x.Content))}[/color] {string.Join(" ", values)}";
         }
     }
 }

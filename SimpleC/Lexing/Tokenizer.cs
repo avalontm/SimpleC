@@ -20,9 +20,7 @@ namespace SimpleC.Lexing
         {
             "int", "float", "bool", "void", "return", "char", "string",
             "if", "else", "while", "for", "do", "switch", "case", "default",
-            "break", "continue", "goto", "sizeof", "typedef", "struct", "union",
-            "enum", "const", "volatile", "static", "extern", "register", "auto",
-            "signed", "unsigned", "short", "long", "double","printf"
+            "break", "continue", "short", "long", "double"
         };
 
         public Tokenizer(string code)
@@ -83,11 +81,16 @@ namespace SimpleC.Lexing
                     case CharType.StringDelimiter:
                         tokens.Add(readStringLiteral(startColumn));
                         break;
-                    case CharType.CharDelimiter: 
+                    case CharType.CharDelimiter:
                         tokens.Add(readCharLiteral(startColumn));
                         break;
                     case CharType.Preprocessor:
                         handlePreprocessor(tokens);
+                        break;
+
+                    case CharType.NewLine: // Aquí se maneja el salto de línea
+                        tokens.Add(new NewLineToken("\n", currentLine, startColumn));
+                        HandleNewLine(); // Asegura que la línea y columna se actualicen correctamente
                         break;
                     default:
                         throw new Exception($"El tokenizer encontró un carácter no identificable: '{peek()}' en la línea {currentLine}, posición {currentColumn}");
@@ -281,6 +284,7 @@ namespace SimpleC.Lexing
             {
                 readingPosition++; // Saltar el '\n' adicional
             }
+            next();
         }
 
         private CharType peekType() => charTypeOf(peek());
@@ -318,42 +322,28 @@ namespace SimpleC.Lexing
                 case ']':
                 case '}':
                     return CharType.CloseBrace;
-                case ',':
-                    return CharType.ArgSeperator;
                 case ';':
                     return CharType.StatementSeperator;
-                case '\r':
-                case '\n':
-                    return CharType.NewLine;
-                case '#':
-                    return CharType.Preprocessor;
+                case ',':
+                    return CharType.ArgSeperator;
                 case '"':
                     return CharType.StringDelimiter;
                 case '\'':
                     return CharType.CharDelimiter;
-                case '\t':
-                    return CharType.LineSpace;
-
-            }
-
-            switch (char.GetUnicodeCategory(c))
-            {
-                case UnicodeCategory.DecimalDigitNumber:
-                    return CharType.Numeric;
-                case UnicodeCategory.LineSeparator:
+                case '#':
+                    return CharType.Preprocessor;
+                case '\n':
+                case '\r':
                     return CharType.NewLine;
-                case UnicodeCategory.ParagraphSeparator:
-                case UnicodeCategory.LowercaseLetter:
-                case UnicodeCategory.OtherLetter:
-                case UnicodeCategory.UppercaseLetter:
-                    return CharType.Alpha;
-                case UnicodeCategory.SpaceSeparator:
-                    return CharType.LineSpace;
+                case ' ':
+                case '\t':
+                    return CharType.WhiteSpace;
+                default:
+                    if (char.IsDigit(c)) return CharType.Numeric;
+                    if (char.IsLetter(c) || c == '_') return CharType.Alpha;
+                    return CharType.Unknown;
             }
-
-            return CharType.Unknown;
         }
-
 
         private char peek() => Code[readingPosition];
 

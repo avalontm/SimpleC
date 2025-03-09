@@ -18,6 +18,8 @@
         And,
         Or,
         Preprocessor,
-        Quotes
+        Quotes,
+        AddAssignment,
+        SubtractAssignment
     }
 }

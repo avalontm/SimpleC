@@ -6,16 +6,12 @@ namespace SimpleC.Types.AstNodes
     internal class PreprocessorNode : StatementSequenceNode
     {
         public string Identifier { get; }
+        public Token Library { get; }
         public bool IsFile { get; }
-        public string Library { get; }
-
+       
         public PreprocessorNode(IEnumerable<Token> tokens)
         {
             var _tokens = tokens.GetEnumerator();
-
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Preprocessor:");
-            Console.ResetColor();
 
             _tokens.MoveNext();
 
@@ -37,7 +33,8 @@ namespace SimpleC.Types.AstNodes
             {
                 throw new ArgumentException("Se esperaba un nombre de la libraria.");
             }
-            Library = _tokens.Current.Content.ToLower();
+
+            Library = _tokens.Current;
 
             //Esperamos hasta movernos hasta el final del los tokens.
             while (!_tokens.MoveNext())
@@ -45,25 +42,18 @@ namespace SimpleC.Types.AstNodes
                 Debug.WriteLine($"token: {_tokens.Current}");
             }
 
-            Console.WriteLine(this.ToString() + "\n");
-            Generate();
+            ColorParser.WriteLine(this.ToString());
         }
 
-        public override void Generate()
-        {
-            if(Library.Contains("stdio.h"))
-            {
-                LLVMSharp.Declare("printf");
-            }
-        }
+
 
         public override string ToString()
         {
-            string Content = $"#{Identifier} <{Library}>";
+            string Content = $"[color=magenta]#{Identifier}[/color] [color=orange]<[/color]{ColorParser.GetTokenColor(Library)}[color=orange]>[/color]";
 
             if (IsFile)
             {
-                Content = $"#{Identifier} \"{Library}\"";
+                Content = $"[color=magenta]#{Identifier}[/color] [color=orange]\"[/color]{ColorParser.GetTokenColor(Library)}[color=orange]\"[/color]";
             }
 
             return Content;

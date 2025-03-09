@@ -1,14 +1,15 @@
-﻿using SimpleC.Types.Tokens;
-
-namespace SimpleC.Types
+﻿namespace SimpleC.Types.Tokens
 {
-    class FloatLiteralToken : Token
+    public class FloatLiteralToken : Token
     {
-        public float Number { get; }
+        public float Numero { get; }
 
-        public FloatLiteralToken(string content, int line, int column) : base(content, line, column)
+        public FloatLiteralToken(string contenido, int linea, int columna) : base(contenido, linea, columna)
         {
-            Number = float.Parse(content, System.Globalization.CultureInfo.InvariantCulture);
+            if (!float.TryParse(contenido, out float numero))
+                throw new ArgumentException("El contenido no es un número flotante válido.", nameof(contenido));
+
+            Numero = numero;
         }
     }
 }

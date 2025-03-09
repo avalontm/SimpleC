@@ -26,7 +26,7 @@ namespace SimpleC.Lexing
 
         // Valores compuestos
         AlphaNumeric = Alpha | Numeric,
-        WhiteSpace = LineSpace | NewLine,
+        WhiteSpace = LineSpace ,
         Brace = OpenBrace | CloseBrace,
         MetaChar = Operator | Brace | ArgSeperator | StatementSeperator | Preprocessor | SingleLineComment | MultiLineComment | StringDelimiter | CharDelimiter | EscapeChar | CharPointer | CharArray,
         All = AlphaNumeric | WhiteSpace | MetaChar,

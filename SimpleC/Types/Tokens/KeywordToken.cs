@@ -1,4 +1,6 @@
-﻿namespace SimpleC.Types.Tokens
+﻿using System.Diagnostics;
+
+namespace SimpleC.Types.Tokens
 {
     class KeywordToken : Token
     {
@@ -15,8 +17,7 @@
             { "string", KeywordType.String },
             { "char", KeywordType.Char },
             { "true", KeywordType.True },
-            { "false", KeywordType.False },
-            { "printf", KeywordType.Printf },
+            { "false", KeywordType.False }
         };
 
         private static readonly Dictionary<KeywordType, VariableType> keywordTypeToVariableType = new Dictionary<KeywordType, VariableType>
@@ -31,8 +32,7 @@
             { KeywordType.CharPointer, VariableType.CharPointer },
             { KeywordType.Return, VariableType.Return },
             { KeywordType.True, VariableType.True },
-            { KeywordType.False, VariableType.False },
-            { KeywordType.Printf, VariableType.Printf },
+            { KeywordType.False, VariableType.False }
         };
 
         public KeywordType KeywordType { get; private set; }

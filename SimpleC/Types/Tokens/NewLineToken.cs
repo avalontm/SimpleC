@@ -11,7 +11,7 @@ namespace SimpleC.Types.Tokens
     {
         public NewLineToken(string content, int line, int column) : base(content, line, column)
         {
-           Debug.WriteLine("NewLine");
+
         }
     }
 }

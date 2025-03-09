@@ -296,6 +296,10 @@ namespace SimpleC
                 {
                     LLVM.SetInitializer(globalVar, LLVM.ConstInt(LLVMTypeRef.Int1, 0, 0));
                 }
+                else if (type == VariableType.Void)
+                {
+                    LLVM.SetInitializer(globalVar, LLVM.ConstInt(LLVMTypeRef.Void, 0, 0));
+                }
                 else if (type == VariableType.String)
                 {
                     // Para el tipo string, inicializar con una cadena vacía o un valor por defecto.
@@ -534,6 +538,7 @@ namespace SimpleC
                 VariableType.Char => LLVMTypeRef.Int8,
                 VariableType.String => LLVMTypeRef.CreatePointer(LLVMTypeRef.Int8, 0),
                 VariableType.Bool => LLVMTypeRef.Int1,
+                VariableType.Void => LLVMTypeRef.Void,
                 _ => throw new Exception("Tipo no soportado"),
             };
         }

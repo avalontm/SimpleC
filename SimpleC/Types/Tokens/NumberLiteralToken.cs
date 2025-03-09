@@ -1,15 +1,15 @@
 ﻿namespace SimpleC.Types.Tokens
 {
-    class NumberLiteralToken : Token
+    public class NumberLiteralToken : Token
     {
-        public double Number { get; } // Propiedad de solo lectura
+        public int Numero { get; } // Propiedad de solo lectura
 
-        public NumberLiteralToken(string content, int line, int column) : base(content, line, column)
+        public NumberLiteralToken(string contenido, int linea, int columna) : base(contenido, linea, columna)
         {
-            if (!double.TryParse(content, out double number))
-                throw new ArgumentException("The content is not a valid number.", nameof(content));
+            if (!int.TryParse(contenido, out int numero))
+                throw new ArgumentException("El contenido no es un número entero válido.", nameof(contenido));
 
-            Number = number;
+            Numero = numero;
         }
     }
 }

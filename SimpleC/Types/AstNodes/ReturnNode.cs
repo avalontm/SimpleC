@@ -1,37 +1,40 @@
-﻿namespace SimpleC.Types.AstNodes
+﻿using SimpleC.Types.Tokens;
+using System.Diagnostics;
+
+namespace SimpleC.Types.AstNodes
 {
     internal class ReturnNode : StatementSequenceNode
     {
-        public string Value { get; }
+        public List<Token> Values { get; }
 
         public ReturnNode(List<Token> tokens)
         {
-            var token = tokens.GetEnumerator();
+            Values = new List<Token>();
 
-            while (token.MoveNext())
+            foreach (var token in tokens)
             {
-                if (token.Current != null)
+                if (token is not StatementSperatorToken)
                 {
-                    if (!token.Current.Content.Contains(";"))
-                    {
-                        Value += $"{token.Current.Content} ";
-                    }
+                    Values.Add(token);
                 }
             }
 
-            Console.WriteLine(this.ToString());
-            Generate();
+            ColorParser.WriteLine(this.ToString());
         }
-
-        public override void Generate()
-        {
-            LLVMSharp.GenerateReturn(Value);
-        }
-
 
         public override string ToString()
         {
-            return $"Return {Value}";
+            List<string> values = new List<string>();
+
+            foreach (var value in Values)
+            {
+                if(value is not KeywordToken keywordToken)
+                {
+                    values.Add(ColorParser.GetTokenColor(value));
+                }
+               
+            }
+            return $"[color=magenta]return[/color] {string.Join(" ", values)}";
         }
     }
 }

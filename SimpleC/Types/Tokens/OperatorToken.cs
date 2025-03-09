@@ -26,7 +26,9 @@ namespace SimpleC.Types.Tokens
             { "|", OperatorType.Or },
             { "-", OperatorType.SubstractNegate },
             { "#", OperatorType.Preprocessor }, 
-            { "\"", OperatorType.Quotes } 
+            { "\"", OperatorType.Quotes } ,
+            { "+=", OperatorType.AddAssignment }, 
+            { "-=", OperatorType.SubtractAssignment }, 
         };
 
         public OperatorType OperatorType { get; private set; }

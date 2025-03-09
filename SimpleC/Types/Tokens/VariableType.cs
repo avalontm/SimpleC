@@ -13,7 +13,14 @@
         CharArray,
         Return,
         True,
-        False,
-        Printf,
+        False
+    }
+
+    public static class VariableTypeExtensions
+    {
+        public static string ToLowerString(this VariableType type)
+        {
+            return type.ToString().ToLower();
+        }
     }
 }

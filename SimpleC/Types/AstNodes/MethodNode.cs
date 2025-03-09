@@ -1,6 +1,5 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
-using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -8,10 +7,10 @@ namespace SimpleC.Types.AstNodes
     {
         public VariableType Type { get; }
         public string Name { get; }
-        public List<string> Parameters { get; } = new List<string>();
+        public List<Token> Parameters { get; } = new List<Token>();
         public string Separator { get; }
 
-        public MethodNode(VariableType type, string name, List<Token> tokens )
+        public MethodNode(VariableType type, string name, List<Token> tokens)
         {
             var token = tokens.GetEnumerator();
             token.MoveNext();
@@ -19,11 +18,6 @@ namespace SimpleC.Types.AstNodes
             Type = type;
             Name = name;
 
-            if (type != VariableType.Void)
-            {
-                Debug.WriteLine($"Name: {Name} | {token.Current}");
-            }
-          
             if (token.Current?.Content != "(")
             {
                 throw new Exception($"Se esperaba un '(': en la línea {token.Current.Line}, posición {token.Current.Column}");
@@ -33,7 +27,7 @@ namespace SimpleC.Types.AstNodes
 
             while (token.MoveNext() && token.Current?.Content != ")")
             {
-                Parameters.Add(token.Current.Content);
+                Parameters.Add(token.Current);
             }
 
             if (token.Current != null && token.Current?.Content != ")")
@@ -48,32 +42,27 @@ namespace SimpleC.Types.AstNodes
                 Separator = token.Current.Content;
             }
 
-            while(token.MoveNext())
+            while (token.MoveNext())
             {
 
             }
 
             ParserGlobal.Register(Name, this);
 
-            Console.WriteLine(this.ToString());
-            Generate();
+            ColorParser.WriteLine(this.ToString());
         }
 
-        public override void Generate()
-        {
-            if (Type == VariableType.Printf)
-            {
-                LLVMSharp.Print(string.Join(" ", Parameters));
-            }
-            else
-            {
-                LLVMSharp.Method(Type, Name);
-            }
-        }
 
         public override string ToString()
         {
-            return $"{Type} {Name}({string.Join(" ", Parameters)}){Separator}";
+            List<string> parameters = new List<string>();
+
+            foreach(var parameter in Parameters)
+            {
+                parameters.Add(ColorParser.GetTokenColor(parameter));
+            }
+
+            return $"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name}[/color][color=magenta]([/color]{string.Join(" ", parameters)}[color=magenta])[/color]{Separator}";
         }
     }
 }
