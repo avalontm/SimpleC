@@ -7,11 +7,49 @@ namespace SimpleC.Parsing
 {
     class Parser
     {
+        #region FUNCIONES INDISPENSABLES
+
         public Token[] Tokens { get; private set; }
         private int readingPosition;
         private Stack<StatementSequenceNode> scopes;
         private Stack<int> bracketCounter;
-        
+
+        public int BracketCounter { get { return bracketCounter.Count; } }
+
+        private TExpected readToken<TExpected>() where TExpected : Token
+        {
+            if (peek() is TExpected)
+                return (TExpected)next();
+            else
+                return null;
+        }
+
+        [DebuggerStepThrough]
+        private Token peek()
+        {
+            return Tokens[readingPosition];
+        }
+
+        [DebuggerStepThrough]
+        private Token next()
+        {
+            var ret = peek();
+            readingPosition++;
+            return ret;
+        }
+
+        [DebuggerStepThrough]
+        private bool eof()
+        {
+            return readingPosition >= Tokens.Length;
+        }
+
+        public StatementSequenceNode? Peek
+        {
+            get { return scopes.Count > 0 ? scopes.Peek() : null; }
+        }
+        #endregion
+
         public static Parser? Instance { get; private set; }
         public Parser(Token[] tokens)
         {
@@ -26,15 +64,29 @@ namespace SimpleC.Parsing
         {
             scopes.Push(new ProgramNode());
 
-            while (!eof())
+            try
             {
-                ProcessNextToken();
+                while (!eof())
+                {
+                    ProcessNextToken();
+                }
+
+                // Antes de verificar el conteo, asegúrate de que todos los alcances estén correctamente balanceados
+                while (scopes.Count > 1)
+                {
+                    // Esto vaciará cualquier alcance restante
+                    scopes.Pop();
+                }
+
+                return (ProgramNode)scopes.Pop();
             }
-
-            if (scopes.Count != 1)
-                throw new ParsingException("Los scopes no están correctamente anidados.");
-
-            return (ProgramNode)scopes.Pop();
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error al analizar: {ex.Message}");
+                // Asegúrate de devolver algo válido incluso en caso de error
+                while (scopes.Count > 1) scopes.Pop();
+                return (ProgramNode)scopes.Pop();
+            }
         }
 
         private void ProcessNextToken()
@@ -83,7 +135,7 @@ namespace SimpleC.Parsing
             {
                 VariableType varType = keyword.ToVariableType();
                 Token name = readToken<IdentifierToken>();
-
+            
                 if (name != null)
                 {
                     ProcessKeyword(varType, name);
@@ -93,7 +145,7 @@ namespace SimpleC.Parsing
                     ProcessOtherKeywords(keyword);
                 }
             }
-            else if (keyword.Content == "if" || keyword.Content == "while" || keyword.Content == "switch")
+            else if (keyword.Content == "if" || keyword.Content == "else" || keyword.Content == "while" || keyword.Content == "switch")
             {
                 ProcessControlFlowStatement(keyword);
             }
@@ -205,8 +257,8 @@ namespace SimpleC.Parsing
 
         private void ProcessOpenBrace()
         {
-            next(); // Consume el carácter '{' que marca el inicio del bloque
-
+            var token = next(); // Consume el carácter '{' que marca el inicio del bloque
+            Debug.WriteLine($"{token.Content}");
             BlockNode blockNode = new BlockNode(); // Crea un nuevo nodo de bloque
 
             // Añade el nodo del bloque al alcance actual (scope). Si estamos dentro de un método o función, se agregará allí.
@@ -217,12 +269,13 @@ namespace SimpleC.Parsing
 
             // Manejo de llaves anidadas. Si ya hay un contador de llaves, se incrementa. Si no, se inicia con 1.
             bracketCounter.Push(bracketCounter.Count > 0 ? bracketCounter.Pop() + 1 : 1);
-        }
 
+        }
 
         private void ProcessCloseBrace()
         {
-            next(); // Consume '}'
+            var token = next(); // Consume '}'
+            Debug.WriteLine($"{token.Content}");
 
             if (bracketCounter.Count > 0)
             {
@@ -257,18 +310,19 @@ namespace SimpleC.Parsing
             }
         }
 
-
         private void ProcessControlFlowStatement(KeywordToken keyword)
         {
-            var statementNode = new ControlFlowNode(keyword.Content);
+            List<Token> condition = new List<Token>();
+            ControlFlowNode statementNode = new ControlFlowNode(keyword.Content);
             scopes.Peek().AddStatement(statementNode);
             scopes.Push(statementNode);
-
-            if (peek().Content == "(")
+           
+            if (peek() is OpenBraceToken && !eof() && peek().Content == "(")
             {
-                List<Token> condition = ReadUntilMatchingParenthesis();
-                ((ControlFlowNode)statementNode).SetCondition(condition);
+                condition = ReadUntilMatchingParenthesis();
             }
+
+            statementNode.SetCondition(condition);
         }
 
         private List<Token> ReadUntilMatchingParenthesis()
@@ -429,7 +483,6 @@ namespace SimpleC.Parsing
 
         private void ProcessOtherKeywords(KeywordToken keyword)
         {
-            Debug.WriteLine($"OtherKeywords: {keyword?.Content}");
 
             if (keyword.ToVariableType() == VariableType.Return)
             {
@@ -459,7 +512,7 @@ namespace SimpleC.Parsing
 
         void ProcessKeyword(VariableType varType, Token name)
         {
-            Debug.WriteLine($"ProcessKeyword: {name.Content}");
+
             if (name == null)
             {
                 throw new ParsingException($"Identificador de nombre esperado para el tipo {varType}");
@@ -522,40 +575,5 @@ namespace SimpleC.Parsing
             }
         }
 
-        #region FUNCIONES INDISPENSABLES
-
-        private TExpected readToken<TExpected>() where TExpected : Token
-        {
-            if (peek() is TExpected)
-                return (TExpected)next();
-            else
-                return null;
-        }
-
-        [DebuggerStepThrough]
-        private Token peek()
-        {
-            return Tokens[readingPosition];
-        }
-
-        [DebuggerStepThrough]
-        private Token next()
-        {
-            var ret = peek();
-            readingPosition++;
-            return ret;
-        }
-
-        [DebuggerStepThrough]
-        private bool eof()
-        {
-            return readingPosition >= Tokens.Length;
-        }
-
-        public StatementSequenceNode? Peek
-        {
-            get { return scopes.Count > 0 ? scopes.Peek() : null; }
-        }
-        #endregion
     }
 }

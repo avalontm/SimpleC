@@ -12,6 +12,8 @@ namespace SimpleC
 
         static void Main(string[] args)
         {
+            Console.ResetColor();
+
             PrintHeader();
 
             if (args.Length == 0)

@@ -5,7 +5,7 @@ namespace SimpleC
 {
     public static class ColorParser
     {
-        public static void WriteLine(string input)
+        public static void WriteLine(string input, bool newLine = true)
         {
             int startIndex = 0;
             while (startIndex < input.Length)
@@ -53,7 +53,10 @@ namespace SimpleC
                 // Continuar con el resto del texto
                 startIndex = nextStartIndex;
             }
-            Console.WriteLine();
+            if (newLine)
+            {
+                Console.WriteLine();
+            }
         }
 
         static void SetConsoleColor(string colorName)

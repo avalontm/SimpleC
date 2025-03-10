@@ -1,5 +1,6 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
+using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -54,6 +55,8 @@ namespace SimpleC.Types.AstNodes
 
         public override void Generate()
         {
+            base.Generate();
+
             List<string> parameters = new List<string>();
    
             foreach (var parameter in Parameters)
@@ -61,11 +64,17 @@ namespace SimpleC.Types.AstNodes
                 parameters.Add(ColorParser.GetTokenColor(parameter));
             }
 
-
             ColorParser.WriteLine($"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name}[/color][color=magenta]([/color]{string.Join(" ", parameters)}[color=magenta])[/color]{Separator}");
 
             //Llamamos el BlockNode
-            this.SubNodes.FirstOrDefault()?.Generate();
+            foreach (var node in this.SubNodes)
+            {
+                if (node is BlockNode blockNode)
+                {
+                    blockNode.Indent = Indent;
+                    blockNode.Generate();
+                }
+            }
         }
     }
 }

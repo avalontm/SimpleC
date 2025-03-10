@@ -28,8 +28,6 @@ namespace SimpleC.Types.AstNodes
             // Procesamiento normal de la variable
             if (operators.Count > 0)
             {
-                Debug.WriteLine($"VariableName: {Name.Content}");
-
                 Operators = operators;
 
                 foreach(var token in tokens)
@@ -48,7 +46,6 @@ namespace SimpleC.Types.AstNodes
                 // Verificar si esto es una declaración de función (tiene paréntesis después del nombre)
                 if (tokens.Count > 0 && tokens[0].Content == "(")
                 {
-                    Debug.WriteLine($"MethodName: {Name.Content}");
                     // Encontrar el paréntesis de cierre correspondiente para extraer los parámetros
                     int parameterEndIndex = FindMatchingParenthesis(tokens);
 

@@ -1,24 +1,27 @@
-﻿namespace SimpleC.Types.AstNodes
+﻿using SimpleC.Parsing;
+
+namespace SimpleC.Types.AstNodes
 {
     // Nodo para representar bloques de código entre llaves {}
     public class BlockNode : StatementSequenceNode
     {
-        public BlockNode() : base()
+        public BlockNode()
         {
 
         }
 
         public override void Generate()
         {
-            ColorParser.WriteLine(@"[color=yellow]{[/color]");
+            base.Generate();
+            ColorParser.WriteLine($@"{Indentation}[color=yellow]{{[/color]");
 
             foreach (var node in this.SubNodes)
             {
-                node.Indent = 1;
+                node.Indent = Indent+1;
                 node.Generate();
             }
 
-            ColorParser.WriteLine(@"[color=yellow]}[/color]");
+            ColorParser.WriteLine(@$"{Indentation}[color=yellow]}}[/color]");
         }
     }
 

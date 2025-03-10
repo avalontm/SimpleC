@@ -16,13 +16,6 @@ namespace SimpleC.Lexing
         private int currentLine;
         private int currentColumn;
 
-        private static readonly HashSet<string> Keywords = new HashSet<string>
-        {
-            "int", "float", "bool", "void", "return", "char", "string",
-            "if", "else", "while", "for", "do", "switch", "case", "default",
-            "break", "continue", "short", "long", "double"
-        };
-
         public Tokenizer(string code)
         {
             this.Code = code;
@@ -47,7 +40,7 @@ namespace SimpleC.Lexing
                     case CharType.Alpha:
                         readToken(builder, CharType.AlphaNumeric);
                         string s = builder.ToString();
-                        tokens.Add(Keywords.Contains(s) ? new KeywordToken(s, currentLine, startColumn) : new IdentifierToken(s, currentLine, startColumn));
+                        tokens.Add(KeywordToken.IsKeyword(s) ? new KeywordToken(s, currentLine, startColumn) : new IdentifierToken(s, currentLine, startColumn));
                         builder.Clear();
                         break;
                     case CharType.Numeric:

@@ -1,6 +1,4 @@
-﻿using SimpleC.Parsing;
-
-namespace SimpleC.Types
+﻿namespace SimpleC.Types
 {
     public abstract class AstNode
     {
@@ -12,9 +10,17 @@ namespace SimpleC.Types
             Indentation = string.Empty;
         }
 
+        public void SetIndent(string indent)
+        {
+            Indentation = indent;
+        }
+
         public virtual void Generate()
         {
-            Indentation = new string(' ', (Indent*4));
+            if (string.IsNullOrEmpty(Indentation))
+            {
+                Indentation = new string(' ', (Indent * 4));
+            }
         }
 
     }

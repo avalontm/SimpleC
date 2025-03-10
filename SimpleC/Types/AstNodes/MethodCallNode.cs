@@ -1,5 +1,5 @@
-﻿using SimpleC.Parsing;
-using SimpleC.Types.Tokens;
+﻿using SimpleC.Types.Tokens;
+using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -15,6 +15,7 @@ namespace SimpleC.Types.AstNodes
             Name = name;
             Arguments = arguments;
 
+            Debug.WriteLine($"{Indentation}{Name} {string.Join(" ", arguments.Select(x=>x.Content))}");
         }
 
         public override void Generate()

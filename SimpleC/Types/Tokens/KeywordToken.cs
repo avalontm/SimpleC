@@ -7,6 +7,7 @@ namespace SimpleC.Types.Tokens
         private static readonly Dictionary<string, KeywordType> validKeywords = new Dictionary<string, KeywordType>()
         {
             { "if", KeywordType.If },
+            { "else", KeywordType.Else },
             { "int", KeywordType.Int },
             { "float", KeywordType.Float },
             { "bool", KeywordType.Bool },
