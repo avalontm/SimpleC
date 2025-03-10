@@ -129,9 +129,12 @@ namespace SimpleC
 
             ColorParser.WriteLine("\nGenerando...");
 
-            foreach (var node in ast.SubNodes)
+            if (logEnabled)
             {
-                node.Generate();
+                foreach (var node in ast.SubNodes)
+                {
+                    node.Generate();
+                }
             }
 
             ColorParser.WriteLine("\n[color=green]¡El Parser se ha generado correctamente![/color]");
@@ -151,19 +154,10 @@ namespace SimpleC
                 if (status)
                 {
                     ColorParser.WriteLine($"[color=green]¡Diagrama AST generado en: {diagramPath}![/color]\n");
-                    // Log diagram generation
-                    if (logEnabled)
-                    {
-                        File.AppendAllText(logFilePath, $"Diagrama generado: {diagramPath} - {DateTime.Now}\n");
-                    }
                 }
                 else
                 {
                     ColorParser.WriteLine("[color=red]Error al generar el diagrama AST.[/color]");
-                    if (logEnabled)
-                    {
-                        File.AppendAllText(logFilePath, $"Error al generar el diagrama: {DateTime.Now}\n");
-                    }
                 }
             }
         }
