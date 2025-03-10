@@ -86,7 +86,7 @@ namespace SimpleC
                     Console.ForegroundColor = ConsoleColor.White;
                     break;
                 case "orange":
-                    Console.ForegroundColor = ConsoleColor.DarkYellow;
+                    Console.ForegroundColor = ConsoleColor.Red;
                     break;
                 default:
                     Console.ForegroundColor = ConsoleColor.Gray;

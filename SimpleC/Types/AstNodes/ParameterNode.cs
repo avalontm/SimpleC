@@ -13,12 +13,6 @@ namespace SimpleC.Types.AstNodes
         {
             Type = type;
             Name = name;
-            if(this.Verify(name))
-            {
-                throw new Exception();
-            }
-
-            this.Register(name, type);
         }
 
         // Método para generar el código correspondiente al parámetro

@@ -171,7 +171,7 @@ namespace SimpleC.Parsing
             if (!KeywordToken.IsKeyword(identifierToken.Content))
             {
 
-                if (ParserGlobal.Verify(identifierToken.Content))
+                if (scopes.Peek().Verify(identifierToken.Content) || ParserGlobal.Verify(identifierToken.Content))
                 {
                     var node = ParserGlobal.Get(identifierToken.Content);
                     if (node is VariableNode variableNode)
@@ -255,15 +255,34 @@ namespace SimpleC.Parsing
         private void ProcessOpenBrace()
         {
             var token = next(); // Consume '{'
+            List<ParameterNode> Parameters = new List<ParameterNode>();
+
             Debug.WriteLine($"Abriendo bloque: {token.Content}");
             BlockNode blockNode = new BlockNode();
+
+            if (scopes.Peek() is MethodNode)
+            {
+                foreach (var node in scopes.Peek().SubNodes)
+                {
+                    if (node is ParameterNode parameterNode)
+                    {
+                        Parameters.Add(parameterNode);
+                    }
+                }
+            }
 
             // Agregar bloque al alcance actual
             scopes.Peek().AddStatement(blockNode);
 
+            if (scopes.Peek() is MethodNode)
+            {
+                blockNode.SetParameters(Parameters);
+            }
+
             // Empujar el nuevo bloque al stack de scopes
             scopes.Push(blockNode);
 
+ 
             // Asegurar que el contador de llaves está sincronizado
             if (bracketCounter.Count == 0)
             {
@@ -532,6 +551,7 @@ namespace SimpleC.Parsing
 
                 var returnNode = new ReturnNode(returnTokens);
                 scopes.Peek().AddStatement(returnNode);
+                returnNode.SetOwner(scopes.Peek());
             }
             else
             {

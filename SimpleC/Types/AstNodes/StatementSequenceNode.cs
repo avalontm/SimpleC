@@ -11,7 +11,7 @@ namespace SimpleC.Types.AstNodes
         {
             if (LocalVariables.ContainsKey(name))
             {
-                throw new Exception($"Variable '{name}'.");
+                throw new Exception($"La Variable '{name}' ({type}) ya se ha registrado.");
             }
             LocalVariables[name] = type;
             Debug.WriteLine($"Variable local registrada: {name} ({type})");
