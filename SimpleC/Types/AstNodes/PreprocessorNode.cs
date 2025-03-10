@@ -37,26 +37,22 @@ namespace SimpleC.Types.AstNodes
             Library = _tokens.Current;
 
             //Esperamos hasta movernos hasta el final del los tokens.
-            while (!_tokens.MoveNext())
-            {
-                Debug.WriteLine($"token: {_tokens.Current}");
-            }
+            while (!_tokens.MoveNext());
 
-            ColorParser.WriteLine(this.ToString());
         }
 
-
-
-        public override string ToString()
+        public override void Generate()
         {
-            string Content = $"[color=magenta]#{Identifier}[/color] [color=orange]<[/color]{ColorParser.GetTokenColor(Library)}[color=orange]>[/color]";
+            base.Generate();
+
+            string Content = $"{Indentation}[color=magenta]#{Identifier}[/color] [color=orange]<[/color]{ColorParser.GetTokenColor(Library)}[color=orange]>[/color]";
 
             if (IsFile)
             {
-                Content = $"[color=magenta]#{Identifier}[/color] [color=orange]\"[/color]{ColorParser.GetTokenColor(Library)}[color=orange]\"[/color]";
+                Content = $"{Indentation}[color=magenta]#{Identifier}[/color] [color=orange]\"[/color]{ColorParser.GetTokenColor(Library)}[color=orange]\"[/color]";
             }
 
-            return Content;
+            ColorParser.WriteLine(Content);
         }
     }
 }

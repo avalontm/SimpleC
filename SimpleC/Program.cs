@@ -68,26 +68,27 @@ namespace SimpleC
                 return;
             }
 
-            Console.WriteLine($"Compilando '{filePath}'...");
+            ColorParser.WriteLine($"Compilando '{filePath}'...");
             string code = File.ReadAllText(filePath, Encoding.UTF8);
-
-            //LLVM
-            LLVMSharp.Init();
 
             // Lexing
             var lexer = new Tokenizer(code);
             var tokens = lexer.Tokenize();
 
-            Console.WriteLine("\nAnalizando...");
+            ColorParser.WriteLine("\nAnalizando...");
 
             var parser = new Parser(tokens);
             var ast = parser.ParseToAst();
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("\nAST generado :)");
-            Console.ResetColor();
+            ColorParser.WriteLine("\nGenerando...");
 
-            LLVMSharp.Generate();
+            foreach (var node in ast.SubNodes)
+            {
+                node.Generate();
+            }
+
+            ColorParser.WriteLine("\n[color=green]¡El Parser se ha generado correctamente![/color]\n");
+
         }
     }
 }

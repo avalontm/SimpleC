@@ -10,11 +10,9 @@ namespace SimpleC.Types.AstNodes
         public Token Name { get; }
         public List<Token> Operators { get; }
         public List<Token> Values { get; private set; }
-        public bool Root { get; }
 
-        public VariableNode(VariableType type, Token name, List<Token> operators, List<Token> tokens, bool root)
+        public VariableNode(VariableType type, Token name, List<Token> operators, List<Token> tokens)
         {
-            Root = root;
             Values = new List<Token>();
 
             if (type != VariableType.Int && type != VariableType.Float &&
@@ -43,7 +41,6 @@ namespace SimpleC.Types.AstNodes
                 }
 
                 ParserGlobal.Register(Name.Content, this);
-                ColorParser.WriteLine(this.ToString());
                 return;
             }
             else
@@ -63,7 +60,6 @@ namespace SimpleC.Types.AstNodes
                         var method = new MethodNode(Type, Name.Content, parameters);
 
                         ParserGlobal.Register(Name.Content, method);
-                        ColorParser.WriteLine(method.ToString());
                         return;
                     }
                 }
@@ -94,8 +90,9 @@ namespace SimpleC.Types.AstNodes
             return -1; // No se encontró un paréntesis de cierre correspondiente
         }
 
-        public override string ToString()
+        public override void Generate()
         {
+            base.Generate();
             List<string> values = new List<string>();
 
             foreach (var value in Values)
@@ -103,7 +100,8 @@ namespace SimpleC.Types.AstNodes
                 values.Add(ColorParser.GetTokenColor(value));
             }
 
-            return $"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x=> x.Content))}[/color] {string.Join(" ", values)}";
+            ColorParser.WriteLine( $"{Indentation}[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
+
         }
     }
 }

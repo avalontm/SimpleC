@@ -1,5 +1,4 @@
 ﻿using SimpleC.Types.Tokens;
-using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -19,22 +18,22 @@ namespace SimpleC.Types.AstNodes
                 }
             }
 
-            ColorParser.WriteLine(this.ToString());
         }
 
-        public override string ToString()
+        public override void Generate()
         {
+            base.Generate();
             List<string> values = new List<string>();
 
             foreach (var value in Values)
             {
-                if(value is not KeywordToken keywordToken)
+                if (value is not KeywordToken keywordToken)
                 {
                     values.Add(ColorParser.GetTokenColor(value));
                 }
-               
+
             }
-            return $"[color=magenta]return[/color] {string.Join(" ", values)}";
+            ColorParser.WriteLine($"{Indentation}[color=magenta]return[/color] {string.Join(" ", values)}");
         }
     }
 }

@@ -1,13 +1,13 @@
-﻿using SimpleC.Types.Tokens;
-using System.Diagnostics;
+﻿using SimpleC.Parsing;
+using SimpleC.Types.Tokens;
 
 namespace SimpleC.Types.AstNodes
 {
     public class MethodCallNode : StatementSequenceNode
     {
-        public VariableType ReturnType { get; private set; }
+        public VariableType ReturnType { get; }
         public string Name { get; private set; }
-        public List<Token> Arguments { get; private set; }
+        public List<Token> Arguments { get; }
 
         public MethodCallNode(VariableType returnType, string name, List<Token> arguments) : base()
         {
@@ -15,19 +15,18 @@ namespace SimpleC.Types.AstNodes
             Name = name;
             Arguments = arguments;
 
-            ColorParser.WriteLine(this.ToString());
         }
 
-        public override string ToString()
+        public override void Generate()
         {
+            base.Generate();
             List<string> arguments = new List<string>();
 
             foreach (var arg in Arguments)
             {
                 arguments.Add(ColorParser.GetTokenColor(arg));
             }
-
-            return $"[color=yellow]{Name}[/color] {string.Join(" ", arguments)}";
+            ColorParser.WriteLine($"{Indentation}[color=yellow]{Name}[/color] {string.Join(" ", arguments)}");
         }
     }
 }

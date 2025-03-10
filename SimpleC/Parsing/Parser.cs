@@ -11,9 +11,11 @@ namespace SimpleC.Parsing
         private int readingPosition;
         private Stack<StatementSequenceNode> scopes;
         private Stack<int> bracketCounter;
-
+        
+        public static Parser? Instance { get; private set; }
         public Parser(Token[] tokens)
         {
+            Instance = this;
             this.Tokens = tokens;
             readingPosition = 0;
             scopes = new Stack<StatementSequenceNode>();
@@ -70,7 +72,7 @@ namespace SimpleC.Parsing
         private void ProcessKeywordToken()
         {
             var keyword = (KeywordToken)next();
-         
+
             if (!KeywordToken.IsKeyword(keyword.Content))
             {
                 throw new ParsingException($"Palabra clave inválida: {keyword.Content} en línea {keyword.Line}, columna {keyword.Column}");
@@ -86,7 +88,7 @@ namespace SimpleC.Parsing
                 {
                     ProcessKeyword(varType, name);
                 }
-                else if(varType is VariableType.Return)
+                else if (varType is VariableType.Return)
                 {
                     ProcessOtherKeywords(keyword);
                 }
@@ -104,8 +106,8 @@ namespace SimpleC.Parsing
         private void ProcessIdentifierToken()
         {
             var identifierToken = (IdentifierToken)next();
-      
-            // Check if it's a custom type
+
+            // Verificar si es un tipo personalizado
             if (IsCustomType(identifierToken.Content))
             {
                 VariableType varType = MapStringToVarType(identifierToken.Content);
@@ -116,10 +118,10 @@ namespace SimpleC.Parsing
                 }
                 return;
             }
-          
+
             if (!KeywordToken.IsKeyword(identifierToken.Content))
             {
-          
+
                 if (ParserGlobal.Verify(identifierToken.Content))
                 {
                     var node = ParserGlobal.Get(identifierToken.Content);
@@ -134,7 +136,7 @@ namespace SimpleC.Parsing
                     return;
                 }
 
-                // Handle undeclared method calls
+                // Manejar llamadas a métodos no declarados
                 if (peek() is OperatorToken && peek().Content == "(")
                 {
                     ProcessUndeclaredMethodCall(identifierToken);
@@ -170,7 +172,7 @@ namespace SimpleC.Parsing
 
         private void ProcessStringToken()
         {
-            var stringNode = new StringNode(next().Content);
+            var stringNode = new StringNode(next());
             scopes.Peek().AddStatement(stringNode);
 
             if (peek() is StatementSperatorToken)
@@ -196,24 +198,27 @@ namespace SimpleC.Parsing
                 var preprocessorNode = new PreprocessorNode(preprocessorTokens);
                 scopes.Peek().AddStatement(preprocessorNode);
 
-                if (!eof() && (peek().Content == "\n" || peek() is StatementSperatorToken))
+                if (!eof() && (peek() is NewLineToken || peek() is StatementSperatorToken))
                     next();
             }
         }
 
         private void ProcessOpenBrace()
         {
-            var token = next(); // Consume '{'
+            next(); // Consume el carácter '{' que marca el inicio del bloque
 
-            if (bracketCounter.Count == 0)
-                bracketCounter.Push(1);
-            else
-                bracketCounter.Push(bracketCounter.Pop() + 1);
+            BlockNode blockNode = new BlockNode(); // Crea un nuevo nodo de bloque
 
-            var blockNode = new BlockNode(token);
+            // Añade el nodo del bloque al alcance actual (scope). Si estamos dentro de un método o función, se agregará allí.
             scopes.Peek().AddStatement(blockNode);
+
+            // El nuevo bloque se convierte en el alcance (scope) actual.
             scopes.Push(blockNode);
+
+            // Manejo de llaves anidadas. Si ya hay un contador de llaves, se incrementa. Si no, se inicia con 1.
+            bracketCounter.Push(bracketCounter.Count > 0 ? bracketCounter.Pop() + 1 : 1);
         }
+
 
         private void ProcessCloseBrace()
         {
@@ -228,11 +233,20 @@ namespace SimpleC.Parsing
                 {
                     bracketCounter.Push(count);
                 }
-                else
+
+                // Cerrar el alcance actual (scope)
+                if (scopes.Count > 1) // No cerrar el alcance raíz
                 {
-                    // Close current block
-                    if (scopes.Count > 1) // Don't close root scope
+                    // Verificar si estamos saliendo de un método
+                    var currentScope = scopes.Peek();
+                    scopes.Pop();
+
+                    // Si el alcance padre es un método y hemos alcanzado el conteo de llaves en 0,
+                    // debemos hacer pop nuevamente para salir del alcance del método
+                    if (count == 0 && scopes.Count > 1 && scopes.Peek() is MethodNode)
                     {
+                        // Hemos llegado al final del cuerpo de un método
+                        // El método en sí ya fue agregado a su alcance padre antes
                         scopes.Pop();
                     }
                 }
@@ -242,6 +256,7 @@ namespace SimpleC.Parsing
                 throw new ParsingException("Error de sintaxis: llave de cierre sin apertura correspondiente");
             }
         }
+
 
         private void ProcessControlFlowStatement(KeywordToken keyword)
         {
@@ -260,7 +275,7 @@ namespace SimpleC.Parsing
         {
             List<Token> tokens = new List<Token>();
             int parenthesisLevel = 0;
-       
+
             do
             {
                 var token = next();
@@ -272,7 +287,7 @@ namespace SimpleC.Parsing
                     parenthesisLevel--;
 
             } while (parenthesisLevel > 0 && !eof());
-   
+
             return tokens;
         }
 
@@ -308,7 +323,7 @@ namespace SimpleC.Parsing
             // Register function if not already registered
             if (!ParserGlobal.Verify(identifierToken.Content))
             {
-                var methodNode = new MethodNode(returnType, identifierToken.Content, new List<Token>());
+                MethodNode methodNode = new MethodNode(returnType, identifierToken.Content, new List<Token>());
                 ParserGlobal.Register(identifierToken.Content, methodNode);
             }
 
@@ -416,10 +431,10 @@ namespace SimpleC.Parsing
         {
             Debug.WriteLine($"OtherKeywords: {keyword?.Content}");
 
-            if (keyword.ToVariableType() ==  VariableType.Return)
+            if (keyword.ToVariableType() == VariableType.Return)
             {
                 List<Token> returnTokens = new List<Token> { keyword };
-                
+
                 while (!eof() && peek() is not StatementSperatorToken)
                 {
                     returnTokens.Add(next());
@@ -455,26 +470,32 @@ namespace SimpleC.Parsing
             {
                 List<Token> parameters = ReadUntilMatchingParenthesis();
 
+                // Create method node
                 var methodNode = new MethodNode(varType, name.Content, parameters);
+
+                // Add method to current scope
                 scopes.Peek().AddStatement(methodNode);
 
-                // Use method as new container
+                // Push method as new scope
                 scopes.Push(methodNode);
 
-                // Check for opening block
+                // Check for opening block - method body
                 if (peek() is OpenBraceToken)
                 {
                     ProcessOpenBrace();
                 }
-
-                // Check for semicolon (function declaration without body)
-                if (peek() is StatementSperatorToken)
+                else if (peek() is StatementSperatorToken)
+                {
+                    // Function declaration without body (e.g., in header files)
                     next();
+                    // Pop method scope since there's no body
+                    scopes.Pop();
+                }
             }
             // Variable declarations
             else
             {
-                List<Token> operatorTokens = new List<Token>(); ;
+                List<Token> operatorTokens = new List<Token>();
                 List<Token> valueTokens = new List<Token>();
 
                 while (!eof() && peek() is OperatorToken)
@@ -495,12 +516,13 @@ namespace SimpleC.Parsing
                     var token = next();
                 }
 
-                // Always set global variables with isRoot=true for correct scope
                 bool isGlobalVar = bracketCounter.Count == 0;
-                var variableNode = new VariableNode(varType, name, operatorTokens, valueTokens, isGlobalVar);
+                var variableNode = new VariableNode(varType, name, operatorTokens, valueTokens);
                 scopes.Peek().AddStatement(variableNode);
             }
         }
+
+        #region FUNCIONES INDISPENSABLES
 
         private TExpected readToken<TExpected>() where TExpected : Token
         {
@@ -529,5 +551,11 @@ namespace SimpleC.Parsing
         {
             return readingPosition >= Tokens.Length;
         }
+
+        public StatementSequenceNode? Peek
+        {
+            get { return scopes.Count > 0 ? scopes.Peek() : null; }
+        }
+        #endregion
     }
 }

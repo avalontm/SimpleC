@@ -3,16 +3,22 @@
     // Nodo para representar bloques de código entre llaves {}
     public class BlockNode : StatementSequenceNode
     {
-        Token Value { get; }
-        public BlockNode(Token value) : base()
+        public BlockNode() : base()
         {
-            Value = value;
-            ColorParser.WriteLine(this.ToString());
+
         }
 
-        public override string ToString()
+        public override void Generate()
         {
-            return $"{ColorParser.GetTokenColor(Value)}";
+            ColorParser.WriteLine(@"[color=yellow]{[/color]");
+
+            foreach (var node in this.SubNodes)
+            {
+                node.Indent = 1;
+                node.Generate();
+            }
+
+            ColorParser.WriteLine(@"[color=yellow]}[/color]");
         }
     }
 

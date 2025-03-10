@@ -2,15 +2,18 @@
 {
     internal class StringNode : StatementSequenceNode
     {
-        public string Value;
+        public Token Value;
 
-        public StringNode(string value)
+        public StringNode(Token value)
         {
             Value = value;
+        }
 
-            Console.ForegroundColor = ConsoleColor.DarkRed;
-            Console.WriteLine($"Cadena: \"{Value}\"");
-            Console.ResetColor();
+        public override void Generate()
+        {
+            base.Generate();
+
+            ColorParser.WriteLine($"\"{ColorParser.GetTokenColor(Value)}\"");
         }
     }
 }

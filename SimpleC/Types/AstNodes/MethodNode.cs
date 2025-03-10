@@ -3,12 +3,13 @@ using SimpleC.Types.Tokens;
 
 namespace SimpleC.Types.AstNodes
 {
-    internal class MethodNode : StatementSequenceNode
+    public class MethodNode : StatementSequenceNode
     {
         public VariableType Type { get; }
         public string Name { get; }
         public List<Token> Parameters { get; } = new List<Token>();
         public string Separator { get; }
+        public BlockNode Block { get; } = new BlockNode();
 
         public MethodNode(VariableType type, string name, List<Token> tokens)
         {
@@ -49,20 +50,22 @@ namespace SimpleC.Types.AstNodes
 
             ParserGlobal.Register(Name, this);
 
-            ColorParser.WriteLine(this.ToString());
         }
 
-
-        public override string ToString()
+        public override void Generate()
         {
             List<string> parameters = new List<string>();
-
-            foreach(var parameter in Parameters)
+   
+            foreach (var parameter in Parameters)
             {
                 parameters.Add(ColorParser.GetTokenColor(parameter));
             }
 
-            return $"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name}[/color][color=magenta]([/color]{string.Join(" ", parameters)}[color=magenta])[/color]{Separator}";
+
+            ColorParser.WriteLine($"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name}[/color][color=magenta]([/color]{string.Join(" ", parameters)}[color=magenta])[/color]{Separator}");
+
+            //Llamamos el BlockNode
+            this.SubNodes.FirstOrDefault()?.Generate();
         }
     }
 }
