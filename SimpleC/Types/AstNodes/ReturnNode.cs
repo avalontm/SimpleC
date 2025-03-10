@@ -9,6 +9,7 @@ namespace SimpleC.Types.AstNodes
 
         public ReturnNode(List<Token> tokens)
         {
+            NameAst = "Regresar";
             Values = new List<Token>();
             foreach (var token in tokens)
             {

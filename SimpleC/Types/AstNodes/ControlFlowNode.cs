@@ -1,6 +1,5 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
-using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -13,6 +12,7 @@ namespace SimpleC.Types.AstNodes
         {
             Condition = new List<Token>();
             Type = type;
+            NameAst = type;
         }
 
         public void SetCondition(List<Token> condition)

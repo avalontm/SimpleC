@@ -6,6 +6,7 @@
 
         public StringNode(Token value)
         {
+            NameAst = "Cadena de texto";
             Value = value;
         }
 

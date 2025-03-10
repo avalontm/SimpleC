@@ -5,13 +5,14 @@ namespace SimpleC.Types.AstNodes
 {
     public class VariableReferenceNode : StatementSequenceNode
     {
-        public string Name { get; private set; }
+        public Token Value { get; private set; }
         public VariableType Type { get; private set; }
 
-        public VariableReferenceNode(string name, VariableType type) : base()
+        public VariableReferenceNode(Token value, VariableType type) : base()
         {
-            Name = name;
+            NameAst = $"Referencia: {value.Content}";
             Type = type;
+            Value = value;
         }
     }
 }

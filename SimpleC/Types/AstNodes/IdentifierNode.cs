@@ -4,17 +4,14 @@ namespace SimpleC.Types.AstNodes
 {
     internal class IdentifierNode : StatementSequenceNode
     {
-        public string Name { get; }
+        public string Value { get; }
 
         public IdentifierNode(string name)
         {
-            Name = name;
+            NameAst = $"Identificador: {name}";
+            Value = name;
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"Identificador: {Name}");
-            Console.ResetColor();
-
-            ParserGlobal.Register(Name, this);
+            ParserGlobal.Register(Value, this);
         }
     }
 }

@@ -6,14 +6,15 @@ namespace SimpleC.Types.AstNodes
     internal class VariableNode : StatementSequenceNode
     {
         public VariableType Type { get; }
-        public Token Name { get; }
+        public Token Identifier { get; }
         public List<Token> Operators { get; }
         public List<Token> Values { get; private set; }
 
-        public VariableNode(VariableType type, Token name, List<Token> operators, List<Token> tokens)
+        public VariableNode(VariableType type, Token identifier, List<Token> operators, List<Token> tokens)
         {
-            this.Register(name.Content, type);
+            this.Register(identifier.Content, type);
 
+            NameAst = $"Variable: {identifier.Content} {string.Join("", operators.Select(x=>x.Content))} {string.Join(" ", tokens.Select(x => x.Content))}";
             Values = new List<Token>();
 
             if (type != VariableType.Int && type != VariableType.Float &&
@@ -24,7 +25,7 @@ namespace SimpleC.Types.AstNodes
             }
 
             Type = type;
-            Name = name;
+            Identifier = identifier;
 
             // Procesamiento normal de la variable
             if (operators.Count > 0)
@@ -41,7 +42,7 @@ namespace SimpleC.Types.AstNodes
 
                 // Validar que los valores asignados sean del mismo tipo que la variable
                 ValidateVariableType();
-                ParserGlobal.Register(Name.Content, this);
+                ParserGlobal.Register(Identifier.Content, this);
                 return;
             }
             else
@@ -57,9 +58,9 @@ namespace SimpleC.Types.AstNodes
                         List<Token> parameters = tokens.GetRange(0, parameterEndIndex + 1);
 
                         // Registrar como un método en lugar de una variable
-                        var method = new MethodNode(Type, Name.Content, parameters);
+                        var method = new MethodNode(Type, Identifier.Content, parameters);
 
-                        ParserGlobal.Register(Name.Content, method);
+                        ParserGlobal.Register(Identifier.Content, method);
                         return;
                     }
                 }
@@ -107,7 +108,7 @@ namespace SimpleC.Types.AstNodes
 
             if (!isValid)
             {
-                throw new Exception($"Error de tipo: La variable '{Name.Content}' de tipo {Type} no puede contener la expresión '{string.Join(" ", Values.Select(v => v.Content))}'");
+                throw new Exception($"Error de tipo: La variable '{Identifier.Content}' de tipo {Type} no puede contener la expresión '{string.Join(" ", Values.Select(v => v.Content))}'");
             }
         }
 
@@ -194,7 +195,7 @@ namespace SimpleC.Types.AstNodes
                 values.Add(ColorParser.GetTokenColor(value));
             }
 
-            ColorParser.WriteLine($"{Indentation}[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
+            ColorParser.WriteLine($"{Indentation}[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Identifier.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
 
         }
     }

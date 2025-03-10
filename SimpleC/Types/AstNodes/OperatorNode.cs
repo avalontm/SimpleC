@@ -2,14 +2,12 @@
 {
     internal class OperatorNode : StatementSequenceNode
     {
-        public string Value { get; }
+        public Token Value { get; }
 
-        public OperatorNode(string value)
+        public OperatorNode(Token value)
         {
+            NameAst = $"Operador: {value.Content}";
             Value = value;
-            Console.ForegroundColor = ConsoleColor.Gray;
-            Console.WriteLine($"Operador: {Value}");
-            Console.ResetColor();
         }
     }
 }

@@ -7,16 +7,17 @@ namespace SimpleC.Types.AstNodes
     public class MethodCallNode : StatementSequenceNode
     {
         public VariableType ReturnType { get; }
-        public string Name { get; private set; }
+        public string Value { get; private set; }
         public List<Token> Arguments { get; }
 
         public MethodCallNode(VariableType returnType, string name, List<Token> arguments) : base()
         {
+            NameAst = $"Llamada de metodo: {name}";
             ReturnType = returnType;
-            Name = name;
+            Value = name;
             Arguments = arguments;
 
-            Debug.WriteLine($"{Indentation}{Name} {string.Join(" ", arguments.Select(x => x.Content))}");
+            Debug.WriteLine($"{Indentation}{Value} {string.Join(" ", arguments.Select(x => x.Content))}");
 
             CheckArgumentsInGlobals();
         }
@@ -48,7 +49,7 @@ namespace SimpleC.Types.AstNodes
             {
                 arguments.Add(ColorParser.GetTokenColor(arg));
             }
-            ColorParser.WriteLine($"{Indentation}[color=yellow]{Name}[/color] {string.Join(" ", arguments)}");
+            ColorParser.WriteLine($"{Indentation}[color=yellow]{Value}[/color] {string.Join(" ", arguments)}");
         }
     }
 }

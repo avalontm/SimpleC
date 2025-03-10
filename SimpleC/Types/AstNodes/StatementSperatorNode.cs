@@ -6,6 +6,7 @@
 
         public StatementSperatorNode(Token value)
         {
+            NameAst = $"Separador: {value.Content}";
             Value = value;
         }
 

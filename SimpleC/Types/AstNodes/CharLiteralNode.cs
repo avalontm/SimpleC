@@ -1,6 +1,4 @@
-﻿using System.Xml.Linq;
-
-namespace SimpleC.Types.AstNodes
+﻿namespace SimpleC.Types.AstNodes
 {
     internal class CharLiteralNode : StatementSequenceNode
     {
@@ -8,11 +6,9 @@ namespace SimpleC.Types.AstNodes
 
         public CharLiteralNode(char value)
         {
+            NameAst = "Literal Carácter";
             Value = value;
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"Char: '{Value}'");
-            Console.ResetColor();
         }
     }
 }

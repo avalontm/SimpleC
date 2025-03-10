@@ -1,18 +1,21 @@
-﻿using System.Diagnostics;
-
-namespace SimpleC.Types.AstNodes
+﻿namespace SimpleC.Types.AstNodes
 {
     internal class NumberLiteralNode : StatementSequenceNode
     {
-        public int Value { get; }
+        public Token Value { get; }
 
-        public NumberLiteralNode(int number) 
+        public NumberLiteralNode(Token value)
         {
-            Value = number;
+            NameAst = "Literal Numero";
+            Value = value;
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"Entero: {Value}");
-            Console.ResetColor();
+        }
+
+        public override void Generate()
+        {
+            base.Generate();
+
+            ColorParser.WriteLine(ColorParser.GetTokenColor(Value));
         }
     }
 }

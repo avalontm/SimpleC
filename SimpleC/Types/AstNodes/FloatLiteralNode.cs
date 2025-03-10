@@ -1,21 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SimpleC.Types.AstNodes
+﻿namespace SimpleC.Types.AstNodes
 {
     internal class FloatLiteralNode : StatementSequenceNode
     {
-        public float Value { get; }
-        public FloatLiteralNode(float value)
-        {
-            Value = value;
+        public Token Value { get; }
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"Flotante: {Value}");
-            Console.ResetColor();
+        public FloatLiteralNode(Token value)
+        {
+            NameAst = "Literal Flotante";
+            Value = value;
+        }
+
+        public override void Generate()
+        {
+            base.Generate();
+
+            ColorParser.WriteLine(ColorParser.GetTokenColor(Value));
         }
     }
 }

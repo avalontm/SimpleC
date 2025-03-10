@@ -8,6 +8,7 @@
 
         public PreprocessorNode(IEnumerable<Token> tokens)
         {
+            NameAst = "Preprocesador: Incluir";
             var _tokens = tokens.GetEnumerator();
 
             _tokens.MoveNext();

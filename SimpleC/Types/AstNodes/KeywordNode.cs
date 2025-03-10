@@ -5,16 +5,13 @@ namespace SimpleC.Types.AstNodes
     internal class KeywordNode : StatementSequenceNode
     {
         public VariableType Variable { get; }
-        public string Name { get; }
+        public string Value { get; }
 
         public KeywordNode(VariableType varType, string name)
         {
+            NameAst = $"Palabra clave: {name}";
             Variable = varType;
-            Name = name;
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"Keyword: {Variable} {Name}");
-            Console.ResetColor();
+            Value = name;
         }
     }
 }

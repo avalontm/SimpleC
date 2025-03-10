@@ -482,13 +482,13 @@ namespace SimpleC.Parsing
                 if (!eof() && peek().Content == ";")
                     next();
 
-                var assignmentNode = new AssignmentNode(identifierToken.Content, valueTokens);
+                var assignmentNode = new AssignmentNode(identifierToken, valueTokens);
                 scopes.Peek().AddStatement(assignmentNode);
             }
             else
             {
                 // Simple variable reference
-                var varRefNode = new VariableReferenceNode(identifierToken.Content, variableNode.Type);
+                var varRefNode = new VariableReferenceNode(identifierToken, variableNode.Type);
                 scopes.Peek().AddStatement(varRefNode);
             }
         }
@@ -497,17 +497,17 @@ namespace SimpleC.Parsing
         {
             if (peek() is OperatorToken)
             {
-                var operatorNode = new OperatorNode(next().Content);
+                var operatorNode = new OperatorNode(next());
                 scopes.Peek().AddStatement(operatorNode);
             }
             else if (peek() is NumberLiteralToken)
             {
-                var numberNode = new NumberLiteralNode(int.Parse(next().Content));
+                var numberNode = new NumberLiteralNode(next());
                 scopes.Peek().AddStatement(numberNode);
             }
             else if (peek() is FloatLiteralToken)
             {
-                var floatNode = new FloatLiteralNode(float.Parse(next().Content));
+                var floatNode = new FloatLiteralNode(next());
                 scopes.Peek().AddStatement(floatNode);
             }
             else if (peek() is CharLiteralToken)

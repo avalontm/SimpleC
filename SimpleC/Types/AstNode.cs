@@ -2,6 +2,7 @@
 {
     public abstract class AstNode
     {
+        public string NameAst { get; internal set; }
         public string Indentation { get; private set; }
         public int Indent { set; get; } = 0;
 

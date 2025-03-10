@@ -2,5 +2,8 @@
 {
     internal class ProgramNode : StatementSequenceNode
     {
+        public ProgramNode() {
+            NameAst = "Programa Principal";
+        }
     }
 }

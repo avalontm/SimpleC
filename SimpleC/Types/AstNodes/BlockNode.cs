@@ -7,14 +7,14 @@ namespace SimpleC.Types.AstNodes
     {
         public BlockNode()
         {
-            
+            NameAst = "Bloque";
         }
 
         public void SetParameters(List<ParameterNode> parameters)
         {
             foreach(var parameter in parameters)
             {
-                this.Register(parameter.Name, parameter.Type);
+                this.Register(parameter.Value, parameter.Type);
             }
 
         }

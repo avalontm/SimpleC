@@ -7,7 +7,7 @@ namespace SimpleC.Types.AstNodes
     public class MethodNode : StatementSequenceNode
     {
         public VariableType Type { get; }
-        public string Name { get; }
+        public string Value { get; }
         public List<Token> Parameters { get; } = new List<Token>();
         public string Separator { get; }
 
@@ -16,8 +16,9 @@ namespace SimpleC.Types.AstNodes
             var token = tokens.GetEnumerator();
             token.MoveNext();
 
+            NameAst = $"Metodo: {name}";
             Type = type;
-            Name = name;
+            Value = name;
 
             if (token.Current?.Content != "(")
             {
@@ -89,7 +90,7 @@ namespace SimpleC.Types.AstNodes
 
 
             // Finaliza el método registrando el nombre
-            ParserGlobal.Register(Name, this);
+            ParserGlobal.Register(Value, this);
         }
 
         public override void Generate()
@@ -103,7 +104,7 @@ namespace SimpleC.Types.AstNodes
                 parameters.Add(ColorParser.GetTokenColor(parameter));
             }
 
-            ColorParser.WriteLine($"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name}[/color][color=magenta]([/color]{string.Join(" ", parameters)}[color=magenta])[/color]{Separator}");
+            ColorParser.WriteLine($"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Value}[/color][color=magenta]([/color]{string.Join(" ", parameters)}[color=magenta])[/color]{Separator}");
 
             // Llamamos al BlockNode para generar código
             foreach (var node in this.SubNodes)

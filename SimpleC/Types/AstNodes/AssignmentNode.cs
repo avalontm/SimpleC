@@ -2,11 +2,12 @@
 {
     public class AssignmentNode : StatementSequenceNode
     {
-        public string VariableName { get; private set; }
+        public Token VariableName { get; private set; }
         public List<Token> Value { get; private set; }
 
-        public AssignmentNode(string variableName, List<Token> value) : base()
+        public AssignmentNode(Token variableName, List<Token> value) : base()
         {
+            NameAst = $"Asignación: {variableName.Content}";
             VariableName = variableName;
             Value = value;
         }
