@@ -1,6 +1,4 @@
-﻿using SimpleC.Parsing;
-
-namespace SimpleC.Types.AstNodes
+﻿namespace SimpleC.Types.AstNodes
 {
     // Nodo para representar bloques de código entre llaves {}
     public class BlockNode : StatementSequenceNode
@@ -17,7 +15,7 @@ namespace SimpleC.Types.AstNodes
 
             foreach (var node in this.SubNodes)
             {
-                node.Indent = Indent+1;
+                node.Indent = Indent + 1;
                 node.Generate();
             }
 

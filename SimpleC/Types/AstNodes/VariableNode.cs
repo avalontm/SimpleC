@@ -1,6 +1,5 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
-using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -13,6 +12,8 @@ namespace SimpleC.Types.AstNodes
 
         public VariableNode(VariableType type, Token name, List<Token> operators, List<Token> tokens)
         {
+            this.Register(name.Content, type);
+
             Values = new List<Token>();
 
             if (type != VariableType.Int && type != VariableType.Float &&
@@ -30,7 +31,7 @@ namespace SimpleC.Types.AstNodes
             {
                 Operators = operators;
 
-                foreach(var token in tokens)
+                foreach (var token in tokens)
                 {
                     if (token is not StatementSperatorToken)
                     {
@@ -38,6 +39,8 @@ namespace SimpleC.Types.AstNodes
                     }
                 }
 
+                // Validar que los valores asignados sean del mismo tipo que la variable
+                ValidateVariableType();
                 ParserGlobal.Register(Name.Content, this);
                 return;
             }
@@ -61,7 +64,7 @@ namespace SimpleC.Types.AstNodes
                     }
                 }
             }
-            
+
         }
 
         private int FindMatchingParenthesis(List<Token> tokens)
@@ -87,6 +90,100 @@ namespace SimpleC.Types.AstNodes
             return -1; // No se encontró un paréntesis de cierre correspondiente
         }
 
+        private void ValidateVariableType()
+        {
+            bool isValid = true;
+
+            if (Values.Count == 1)
+            {
+                // Validar valor único
+                isValid = IsValidValue(Values[0], Type);
+            }
+            else
+            {
+                // Validar expresión completa
+                isValid = IsValidExpression(Values, Type);
+            }
+
+            if (!isValid)
+            {
+                throw new Exception($"Error de tipo: La variable '{Name.Content}' de tipo {Type} no puede contener la expresión '{string.Join(" ", Values.Select(v => v.Content))}'");
+            }
+        }
+
+        private bool IsValidValue(Token token, VariableType expectedType)
+        {
+            return expectedType switch
+            {
+                VariableType.Int => int.TryParse(token.Content, out _),
+                VariableType.Float => float.TryParse(token.Content, out _),
+                VariableType.String => token.Content.StartsWith("\"") && token.Content.EndsWith("\""),
+                VariableType.Char => token.Content.StartsWith("'") && token.Content.EndsWith("'") && token.Content.Length == 3,
+                VariableType.Bool => token.Content == "true" || token.Content == "false",
+                _ => false
+            };
+        }
+
+        private bool IsValidExpression(List<Token> tokens, VariableType expectedType)
+        {
+            VariableType? lastType = null;
+
+            foreach (var token in tokens)
+            {
+                if (token is OperatorToken || token is OpenBraceToken && token.Content == "(" || token is CloseBraceToken && token.Content == ")") continue; // Saltar operadores (+, -, *, /)
+
+                VariableType currentType = GetTokenVariableType(token);
+
+                if (lastType == null)
+                {
+                    lastType = currentType;
+                }
+                else
+                {
+                    // Validar si los tipos coinciden
+                    if (!AreCompatibleTypes(lastType.Value, currentType, expectedType))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return lastType == expectedType;
+        }
+
+        private VariableType GetTokenVariableType(Token token)
+        {
+            if (int.TryParse(token.Content, out _)) return VariableType.Int;
+            if (float.TryParse(token.Content, out _)) return VariableType.Float;
+            if (token.Content.StartsWith("\"") && token.Content.EndsWith("\"")) return VariableType.String;
+            if (token.Content.StartsWith("'") && token.Content.EndsWith("'") && token.Content.Length == 3) return VariableType.Char;
+            if (token.Content == "true" || token.Content == "false") return VariableType.Bool;
+
+            // Si es un identificador, buscar su tipo en el registro global
+            if (ParserGlobal.Verify(token.Content))
+            {
+                var variable = ParserGlobal.Get(token.Content) as VariableNode;
+                if (variable != null) return variable.Type;
+            }
+
+            throw new Exception($"Error: No se puede determinar el tipo de '{token.Content}'");
+        }
+
+        private bool AreCompatibleTypes(VariableType type1, VariableType type2, VariableType expectedType)
+        {
+            return (type1, type2, expectedType) switch
+            {
+                (VariableType.Int, VariableType.Int, VariableType.Int) => true,
+                (VariableType.Float, VariableType.Float, VariableType.Float) => true,
+                (VariableType.Int, VariableType.Float, VariableType.Float) => true, // Permite int + float
+                (VariableType.Float, VariableType.Int, VariableType.Float) => true,
+                (VariableType.String, VariableType.String, VariableType.String) => true, // Concatenación de strings
+                _ => false
+            };
+        }
+
+
+
         public override void Generate()
         {
             base.Generate();
@@ -97,7 +194,7 @@ namespace SimpleC.Types.AstNodes
                 values.Add(ColorParser.GetTokenColor(value));
             }
 
-            ColorParser.WriteLine( $"{Indentation}[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
+            ColorParser.WriteLine($"{Indentation}[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Name.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
 
         }
     }

@@ -1,4 +1,5 @@
-﻿using SimpleC.Types.Tokens;
+﻿using SimpleC.Parsing;
+using SimpleC.Types.Tokens;
 using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
@@ -15,8 +16,28 @@ namespace SimpleC.Types.AstNodes
             Name = name;
             Arguments = arguments;
 
-            Debug.WriteLine($"{Indentation}{Name} {string.Join(" ", arguments.Select(x=>x.Content))}");
+            Debug.WriteLine($"{Indentation}{Name} {string.Join(" ", arguments.Select(x => x.Content))}");
+
+            CheckArgumentsInGlobals();
         }
+
+        // Método para verificar si los argumentos existen en las variables globales
+        private void CheckArgumentsInGlobals()
+        {
+            foreach (var arg in Arguments)
+            {
+                if (arg is IdentifierToken identifierToken)
+                {
+
+                    if (!this.Verify(identifierToken.Content) && !ParserGlobal.Verify(identifierToken.Content)) // Verifica si el nombre del argumento está en los globales
+                    {
+                        throw new Exception($"{Indentation}Argumento '{identifierToken.Content}' no encontrado: " +
+                                            $"(Línea: {identifierToken.Line}, Columna: {identifierToken.Column})");
+                    }
+                }
+            }
+        }
+
 
         public override void Generate()
         {

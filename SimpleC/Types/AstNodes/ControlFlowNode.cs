@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using SimpleC.Parsing;
+using SimpleC.Types.Tokens;
+using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -7,7 +9,7 @@ namespace SimpleC.Types.AstNodes
         public string Type { get; private set; }
         public List<Token> Condition { get; private set; }
 
-        public ControlFlowNode(string type) 
+        public ControlFlowNode(string type)
         {
             Condition = new List<Token>();
             Type = type;
@@ -16,12 +18,27 @@ namespace SimpleC.Types.AstNodes
         public void SetCondition(List<Token> condition)
         {
             Condition = condition;
+            CheckConditionInGlobals(); // Verifica las variables al establecer la condición
+        }
+
+        private void CheckConditionInGlobals()
+        {
+            foreach (var token in Condition)
+            {
+                if (token is IdentifierToken identifierToken)
+                {
+                    if (!this.Verify(identifierToken.Content) && !ParserGlobal.Verify(identifierToken.Content))
+                    {
+                        throw new Exception($"Error en {Type.ToLowerInvariant()}: Variable '{identifierToken.Content}' no encontrada: " +
+                                            $"(Línea: {identifierToken.Line}, Columna: {identifierToken.Column})");
+                    }
+                }
+            }
         }
 
         public override void Generate()
         {
             base.Generate();
-
             List<string> conditions = new List<string>();
 
             foreach (var _condition in Condition)
@@ -31,23 +48,28 @@ namespace SimpleC.Types.AstNodes
 
             if (Type == "else")
             {
-                if(this.SubNodes.First() is ControlFlowNode flowNode)
+                if (this.SubNodes.First() is ControlFlowNode flowNode)
                 {
                     if (flowNode.Type == "if")
                     {
-                        Debug.WriteLine(flowNode.Type); 
                         ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color]", false);
-                    }else
+                    }
+                    else
                     {
                         ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color]", true);
                     }
-                }else
-                { 
+                }
+                else
+                {
                     ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color]");
                 }
-            }else if(Type == "case" || Type == "default")
+            }
+            else if (Type == "case" || Type == "default")
             {
-                conditions.RemoveAt(conditions.Count - 1);  // Elimina el último elemento de la lista
+                if (conditions.Count > 0)
+                {
+                    conditions.RemoveAt(conditions.Count - 1);  // Elimina el último elemento de la lista
+                }
                 string result = string.Join(" ", conditions);  // Une los elementos restantes con un espacio
 
                 ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color] {result}");
@@ -56,17 +78,19 @@ namespace SimpleC.Types.AstNodes
             {
                 ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color] {string.Join(" ", conditions)}");
             }
-            //Llamamos el BlockNode
+
+            // Llamamos al BlockNode
             foreach (var node in this.SubNodes)
             {
-                if(node is ControlFlowNode flowNode)
+                if (node is ControlFlowNode flowNode)
                 {
                     if (Type == "else" && flowNode.Type == "if")
                     {
                         flowNode.SetIndent(" ");
                         flowNode.Indent = Indent;
                         flowNode.Generate();
-                    }else
+                    }
+                    else
                     {
                         node.Indent = Indent;
                         node.Generate();

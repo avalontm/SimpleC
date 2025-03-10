@@ -1,7 +1,6 @@
 ﻿using SimpleC.Types;
 using SimpleC.Types.AstNodes;
 using SimpleC.Types.Tokens;
-using System.Data.Common;
 using System.Diagnostics;
 
 namespace SimpleC.Parsing
@@ -255,56 +254,61 @@ namespace SimpleC.Parsing
 
         private void ProcessOpenBrace()
         {
-            var token = next(); // Consume el carácter '{' que marca el inicio del bloque
-            Debug.WriteLine($"{token.Content}");
-            BlockNode blockNode = new BlockNode(); // Crea un nuevo nodo de bloque
+            var token = next(); // Consume '{'
+            Debug.WriteLine($"Abriendo bloque: {token.Content}");
+            BlockNode blockNode = new BlockNode();
 
-            // Añade el nodo del bloque al alcance actual (scope). Si estamos dentro de un método o función, se agregará allí.
+            // Agregar bloque al alcance actual
             scopes.Peek().AddStatement(blockNode);
 
-            // El nuevo bloque se convierte en el alcance (scope) actual.
+            // Empujar el nuevo bloque al stack de scopes
             scopes.Push(blockNode);
 
-            // Manejo de llaves anidadas. Si ya hay un contador de llaves, se incrementa. Si no, se inicia con 1.
-            bracketCounter.Push(bracketCounter.Count > 0 ? bracketCounter.Pop() + 1 : 1);
-
+            // Asegurar que el contador de llaves está sincronizado
+            if (bracketCounter.Count == 0)
+            {
+                bracketCounter.Push(1);
+            }
+            else
+            {
+                bracketCounter.Push(bracketCounter.Pop() + 1);
+            }
         }
 
         private void ProcessCloseBrace()
         {
             var token = next(); // Consume '}'
-            Debug.WriteLine($"{token.Content}");
+            Debug.WriteLine($"Cerrando bloque: {token.Content} (Línea: {token.Line}, Columna: {token.Column})");
 
-            if (bracketCounter.Count > 0)
+            if (bracketCounter.Count == 0)
             {
-                var count = bracketCounter.Pop();
-                count--;
+                throw new ParsingException($"Error de sintaxis en línea {token.Line}, columna {token.Column}: llave de cierre sin apertura correspondiente");
+            }
 
-                if (count > 0)
-                {
-                    bracketCounter.Push(count);
-                }
+            // Decrementar el contador de llaves
+            var count = bracketCounter.Pop();
+            count--;
 
-                // Cerrar el alcance actual (scope)
-                if (scopes.Count > 1) // No cerrar el alcance raíz
+            if (count > 0)
+            {
+                bracketCounter.Push(count);
+            }
+
+            // Cerrar el alcance actual
+            if (scopes.Count > 1)
+            {
+                scopes.Pop();
+
+                // Si el nuevo scope en la pila es un `MethodNode` y `count == 0`, cerrar el método
+                if (count == 0 && scopes.Count > 0 && scopes.Peek() is MethodNode)
                 {
-                    // Verificar si estamos saliendo de un método
-                    var currentScope = scopes.Peek();
+                    Debug.WriteLine($"Finalizando método en línea {token.Line}, columna {token.Column}");
                     scopes.Pop();
-
-                    // Si el alcance padre es un método y hemos alcanzado el conteo de llaves en 0,
-                    // debemos hacer pop nuevamente para salir del alcance del método
-                    if (count == 0 && scopes.Count > 1 && scopes.Peek() is MethodNode)
-                    {
-                        // Hemos llegado al final del cuerpo de un método
-                        // El método en sí ya fue agregado a su alcance padre antes
-                        scopes.Pop();
-                    }
                 }
             }
             else
             {
-                throw new ParsingException("Error de sintaxis: llave de cierre sin apertura correspondiente");
+                throw new ParsingException($"Error de sintaxis en línea {token.Line}, columna {token.Column}: intento de cerrar un alcance no abierto.");
             }
         }
 
@@ -314,7 +318,7 @@ namespace SimpleC.Parsing
             ControlFlowNode statementNode = new ControlFlowNode(keyword.Content);
             scopes.Peek().AddStatement(statementNode);
             scopes.Push(statementNode);
-           
+
             if (peek() is OpenBraceToken && !eof() && peek().Content == "(")
             {
                 condition = ReadUntilMatchingParenthesis();
