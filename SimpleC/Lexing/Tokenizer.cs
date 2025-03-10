@@ -264,6 +264,7 @@ namespace SimpleC.Lexing
                 }
 
                 next();
+                currentColumn++;
             }
         }
 

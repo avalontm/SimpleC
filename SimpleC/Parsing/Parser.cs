@@ -82,7 +82,8 @@ namespace SimpleC.Parsing
             }
             catch (Exception ex)
             {
-                throw new Exception(ex.Message);
+                ColorParser.WriteLine($"[color=red]{ex.Message}[/color]");
+                return (ProgramNode)scopes.Pop();
             }
         }
 

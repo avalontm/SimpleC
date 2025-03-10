@@ -129,14 +129,11 @@ namespace SimpleC
 
             ColorParser.WriteLine("\nGenerando...");
 
-            if (logEnabled)
+            foreach (var node in ast.SubNodes)
             {
-                foreach (var node in ast.SubNodes)
-                {
-                    node.Generate();
-                }
+                node.Generate();
             }
-
+       
             ColorParser.WriteLine("\n[color=green]¡El Parser se ha generado correctamente![/color]");
 
             // Log the successful parsing

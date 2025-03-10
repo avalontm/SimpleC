@@ -5,12 +5,14 @@ using SkiaSharp;
 public class AstFlowchartGenerator
 {
     private SKCanvas canvas;
-    private float nodeWidth = 140;
-    private float nodeHeight = 50;
+    private float nodeWidth = 150;
+    private float nodeHeight = 60;
     // Aumentar el espaciado vertical y horizontal
-    private float verticalSpacing = 120;   // Aumentado de 80 a 120
-    private float horizontalSpacing = 240; // Aumentado de 180 a 240
+    private float verticalSpacing = 140;
+    private float horizontalSpacing = 260;
+    private SKFont textFont;
     private SKPaint textPaint;
+    private SKFont subtextFont;
     private SKPaint subtextPaint;
     private float minX = float.MaxValue;
     private float minY = float.MaxValue;
@@ -31,23 +33,35 @@ public class AstFlowchartGenerator
         nodePositions = new Dictionary<AstNode, SKPoint>();
         nodeSizes = new Dictionary<AstNode, NodeSize>();
 
-        // Initialize SkiaSharp text paint
+        // Initialize SkiaSharp text paint and font
+        textFont = new SKFont
+        {
+            Size = 14,
+            Typeface = SKTypeface.Default,
+            Edging = SKFontEdging.SubpixelAntialias
+        };
+
         textPaint = new SKPaint
         {
             Color = SKColors.Black,
             IsAntialias = true,
             TextAlign = SKTextAlign.Center,
-            TextSize = 14,
             FakeBoldText = true
         };
 
         // Texto más pequeño para subtipos
+        subtextFont = new SKFont
+        {
+            Size = 10,
+            Typeface = SKTypeface.Default,
+            Edging = SKFontEdging.SubpixelAntialias
+        };
+
         subtextPaint = new SKPaint
         {
             Color = SKColors.DarkSlateGray,
             IsAntialias = true,
-            TextAlign = SKTextAlign.Center,
-            TextSize = 10
+            TextAlign = SKTextAlign.Center
         };
     }
 
@@ -73,8 +87,8 @@ public class AstFlowchartGenerator
             canvas.Clear(SKColors.White);
 
             // Dibujar el diagrama de flujo con un desplazamiento para centrar
-            float offsetX = -minX + 80; // Aumentado el margen de 50px a 80px
-            float offsetY = -minY + 80; // Aumentado el margen de 50px a 80px
+            float offsetX = -minX + 80;
+            float offsetY = -minY + 80;
 
             DrawFlowchartWithOffset(rootNode, offsetX, offsetY);
         }
@@ -268,13 +282,13 @@ public class AstFlowchartGenerator
     private SKSizeI CalculateImageSize()
     {
         // Añadir margen al tamaño del lienzo
-        int margin = 100; // Aumentado de 50 a 100
+        int margin = 100; 
         int width = (int)(maxX - minX + 2 * margin);
         int height = (int)(maxY - minY + 2 * margin);
 
         // Asegurar tamaños mínimos
-        width = Math.Max(width, 800);  // Aumentado de 500 a 800
-        height = Math.Max(height, 600); // Aumentado de 400 a 600
+        width = Math.Max(width, 800);  
+        height = Math.Max(height, 600); 
 
         return new SKSizeI(width, height);
     }
@@ -328,17 +342,14 @@ public class AstFlowchartGenerator
                 float y = pos.Y + offsetY;
 
                 // Obtener tipo y dibujar
-                string nodeType = GetNodeType(subNode); 
-                
-                if (!string.IsNullOrEmpty(nodeType))
-                {
-                    DrawNode(x, y, subNode, nodeType, nodePaint, borderPaint, null);
+                string nodeType = GetNodeType(subNode);
 
-                    // Si es secuencia, recursivamente dibujar sus subnodos
-                    if (subNode is StatementSequenceNode statementSeq)
-                    {
-                        DrawNodesWithOffset(statementSeq, offsetX, offsetY);
-                    }
+                DrawNode(x, y, subNode, nodeType, nodePaint, borderPaint, null);
+
+                // Si es secuencia, recursivamente dibujar sus subnodos
+                if (subNode is StatementSequenceNode statementSeq)
+                {
+                    DrawNodesWithOffset(statementSeq, offsetX, offsetY);
                 }
             }
         }
@@ -381,17 +392,18 @@ public class AstFlowchartGenerator
         // Determinar la forma del nodo según su tipo
         var typeName = node.NameAst;
 
-        if(string.IsNullOrEmpty(typeName))
+        if (string.IsNullOrEmpty(typeName))
         {
-            return null;
+            return "Rectangle";
         }
+
         typeName = typeName.ToLower();
 
-        if (typeName.Contains("declaracion") )
+        if (typeName.Contains("declaracion"))
             return "Diamond";
         else if (typeName.Contains("if") || typeName.Contains("while") || typeName.Contains("for") || typeName.Contains("else") || typeName.Contains("switch"))
             return "Diamond";
-        else if (typeName.Contains("Funcion") || typeName.Contains("metodo"))
+        else if (typeName.Contains("funcion") || typeName.Contains("metodo"))
             return "Circle";
         else
             return "Rectangle";
@@ -403,13 +415,30 @@ public class AstFlowchartGenerator
         SKColor nodeColor;
         string label = node.NameAst;
 
-        if (label.Contains("Statement"))
+        if (string.IsNullOrEmpty(label))
+        {
+            label = "Sin etiqueta";
+        }
+
+        label = label.ToLower();
+
+        if (label.Contains("variable"))
             nodeColor = SKColors.LightBlue;
-        else if (label.Contains("Expression"))
-            nodeColor = SKColors.LightGreen;
-        else if (label.Contains("Declaration"))
+        else if (label.Contains("if"))
+            nodeColor = SKColors.LightPink;
+        else if (label.Contains("while"))
+            nodeColor = SKColors.LightPink;
+        else if (label.Contains("for"))
+            nodeColor = SKColors.LightPink;
+        else if (label.Contains("else"))
+            nodeColor = SKColors.LightPink;
+        else if (label.Contains("switch"))
+            nodeColor = SKColors.LightPink;
+        else if (label.Contains("break"))
+            nodeColor = SKColors.LightPink;
+        else if (label.Contains("declaración"))
             nodeColor = SKColors.LightSalmon;
-        else if (label.Contains("Function"))
+        else if (label.Contains("metodo"))
             nodeColor = SKColors.LightYellow;
         else
             nodeColor = SKColors.LightGray;
@@ -440,15 +469,21 @@ public class AstFlowchartGenerator
         }
     }
 
+    // Método mejorado para medir texto usando SKFont
+    private float MeasureTextWidth(string text, SKFont font)
+    {
+        return font.MeasureText(text);
+    }
+
     // Añade este método para dividir el texto en múltiples líneas
-    private List<string> WrapText(string text, float maxWidth, SKPaint paint)
+    private List<string> WrapText(string text, float maxWidth, SKFont font)
     {
         List<string> lines = new List<string>();
         if (string.IsNullOrEmpty(text))
             return lines;
 
         // Si el texto es corto, no hace falta dividirlo
-        if (paint.MeasureText(text) <= maxWidth)
+        if (MeasureTextWidth(text, font) <= maxWidth)
         {
             lines.Add(text);
             return lines;
@@ -461,7 +496,7 @@ public class AstFlowchartGenerator
         for (int i = 1; i < words.Length; i++)
         {
             string word = words[i];
-            if (paint.MeasureText(currentLine + " " + word) <= maxWidth)
+            if (MeasureTextWidth(currentLine + " " + word, font) <= maxWidth)
             {
                 currentLine += " " + word;
             }
@@ -483,26 +518,27 @@ public class AstFlowchartGenerator
     private void DrawRectangle(float x, float y, float width, float height, string label, SKPaint nodePaint, SKPaint borderPaint, string subtext)
     {
         // Calcular si necesitamos expandir el rectángulo
-        List<string> lines = WrapText(label, width - 20, textPaint);
-        float textHeight = lines.Count * textPaint.TextSize * 1.5f;
+        List<string> lines = WrapText(label, width - 20, textFont);
+        float textHeight = lines.Count * textFont.Size * 1.5f;
         float adjustedHeight = Math.Max(height, textHeight + 20); // 20px de margen
 
         // Draw the rectangle for the node
         canvas.DrawRoundRect(x - width / 2, y - adjustedHeight / 2, width, adjustedHeight, 10, 10, nodePaint);
         canvas.DrawRoundRect(x - width / 2, y - adjustedHeight / 2, width, adjustedHeight, 10, 10, borderPaint);
 
-        // Dibujar cada línea de texto
-        float lineY = y - ((lines.Count - 1) * textPaint.TextSize * 0.75f);
+        // Dibujar cada línea de texto con método actualizando usando SKFont
+        float lineY = y - ((lines.Count - 1) * textFont.Size * 0.75f);
         foreach (string line in lines)
         {
-            canvas.DrawText(line, x, lineY, textPaint);
-            lineY += textPaint.TextSize * 1.5f;
+            // Usar DrawText con SKFont y posición correcta
+            canvas.DrawText(line, x, lineY, textFont, textPaint);
+            lineY += textFont.Size * 1.5f;
         }
 
         // Dibujar subtexto si existe
         if (!string.IsNullOrEmpty(subtext))
         {
-            canvas.DrawText(subtext, x, y + adjustedHeight / 3 + 5, subtextPaint);
+            canvas.DrawText(subtext, x, y + adjustedHeight / 3 + 5, subtextFont, subtextPaint);
         }
     }
 
@@ -510,8 +546,8 @@ public class AstFlowchartGenerator
     private void DrawCircle(float x, float y, float radius, string label, SKPaint nodePaint, SKPaint borderPaint, string subtext)
     {
         // Calcular si necesitamos expandir el círculo
-        List<string> lines = WrapText(label, radius * 1.5f, textPaint);
-        float textHeight = lines.Count * textPaint.TextSize * 1.5f;
+        List<string> lines = WrapText(label, radius * 1.5f, textFont);
+        float textHeight = lines.Count * textFont.Size * 1.5f;
         float adjustedRadius = Math.Max(radius, textHeight / 1.6f); // Ajustar para que quepan las líneas
 
         // Draw the circle for the node
@@ -519,17 +555,17 @@ public class AstFlowchartGenerator
         canvas.DrawCircle(x, y, adjustedRadius, borderPaint);
 
         // Dibujar cada línea de texto
-        float lineY = y - ((lines.Count - 1) * textPaint.TextSize * 0.75f);
+        float lineY = y - ((lines.Count - 1) * textFont.Size * 0.75f);
         foreach (string line in lines)
         {
-            canvas.DrawText(line, x, lineY, textPaint);
-            lineY += textPaint.TextSize * 1.5f;
+            canvas.DrawText(line, x, lineY, textFont, textPaint);
+            lineY += textFont.Size * 1.5f;
         }
 
         // Dibujar subtexto si existe
         if (!string.IsNullOrEmpty(subtext))
         {
-            canvas.DrawText(subtext, x, y + adjustedRadius / 2 + 5, subtextPaint);
+            canvas.DrawText(subtext, x, y + adjustedRadius / 2 + 5, subtextFont, subtextPaint);
         }
     }
 
@@ -537,8 +573,8 @@ public class AstFlowchartGenerator
     private void DrawDiamond(float x, float y, float width, float height, string label, SKPaint nodePaint, SKPaint borderPaint, string subtext)
     {
         // Calcular si necesitamos expandir el diamante
-        List<string> lines = WrapText(label, width * 0.7f, textPaint);
-        float textHeight = lines.Count * textPaint.TextSize * 1.5f;
+        List<string> lines = WrapText(label, width * 0.7f, textFont);
+        float textHeight = lines.Count * textFont.Size * 1.5f;
         float adjustedHeight = Math.Max(height, textHeight * 1.4f); // Ajustar para que quepan las líneas
         float adjustedWidth = Math.Max(width, adjustedHeight * (width / height)); // Mantener proporción
 
@@ -554,17 +590,17 @@ public class AstFlowchartGenerator
         canvas.DrawPath(path, borderPaint);
 
         // Dibujar cada línea de texto
-        float lineY = y - ((lines.Count - 1) * textPaint.TextSize * 0.75f);
+        float lineY = y - ((lines.Count - 1) * textFont.Size * 0.75f);
         foreach (string line in lines)
         {
-            canvas.DrawText(line, x, lineY, textPaint);
-            lineY += textPaint.TextSize * 1.5f;
+            canvas.DrawText(line, x, lineY, textFont, textPaint);
+            lineY += textFont.Size * 1.5f;
         }
 
         // Dibujar subtexto si existe
         if (!string.IsNullOrEmpty(subtext))
         {
-            canvas.DrawText(subtext, x, y + adjustedHeight / 3 + 5, subtextPaint);
+            canvas.DrawText(subtext, x, y + adjustedHeight / 3 + 5, subtextFont, subtextPaint);
         }
     }
 
@@ -580,8 +616,8 @@ public class AstFlowchartGenerator
         string label = node.NameAst;
         if (!string.IsNullOrEmpty(label))
         {
-            List<string> lines = WrapText(label, width * 0.8f, textPaint);
-            float textHeight = lines.Count * textPaint.TextSize * 1.5f;
+            List<string> lines = WrapText(label, width * 0.8f, textFont);
+            float textHeight = lines.Count * textFont.Size * 1.5f;
 
             if (nodeType == "Circle")
             {
@@ -713,6 +749,5 @@ public class AstFlowchartGenerator
         {
             return false;
         }
-
     }
 }
