@@ -1,14 +1,11 @@
-﻿using LLVMSharp.Interop;
-using System.Diagnostics;
-
-namespace SimpleC.Types.AstNodes
+﻿namespace SimpleC.Types.AstNodes
 {
     internal class PreprocessorNode : StatementSequenceNode
     {
         public string Identifier { get; }
         public Token Library { get; }
         public bool IsFile { get; }
-       
+
         public PreprocessorNode(IEnumerable<Token> tokens)
         {
             var _tokens = tokens.GetEnumerator();
@@ -29,7 +26,7 @@ namespace SimpleC.Types.AstNodes
             }
             _tokens.MoveNext();
 
-            if(string.IsNullOrEmpty(_tokens.Current.Content))
+            if (string.IsNullOrEmpty(_tokens.Current.Content))
             {
                 throw new ArgumentException("Se esperaba un nombre de la libraria.");
             }
@@ -37,7 +34,7 @@ namespace SimpleC.Types.AstNodes
             Library = _tokens.Current;
 
             //Esperamos hasta movernos hasta el final del los tokens.
-            while (!_tokens.MoveNext());
+            while (!_tokens.MoveNext()) ;
 
         }
 

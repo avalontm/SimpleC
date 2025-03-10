@@ -10,10 +10,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
-	<ItemGroup>
-		<PackageReference Include="libLLVM.runtime.win-x64" Version="18.1.3.1" />
-		<PackageReference Include="LLVMSharp.Interop" Version="16.0.0" />
-	</ItemGroup>
 	
 </Project>
