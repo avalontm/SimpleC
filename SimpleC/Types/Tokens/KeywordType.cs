@@ -18,6 +18,12 @@
         True,
         False,
         Printf,
-        Else
+        Else,
+        For,
+        Switch,
+        Case,
+        Break,
+        Do,
+        Default
     }
 }

@@ -16,13 +16,6 @@ namespace SimpleC.Types.AstNodes
         public void SetCondition(List<Token> condition)
         {
             Condition = condition;
-
-            Debug.Write($"{Type.ToLowerInvariant()}");
-            foreach (var _condition in Condition)
-            {
-                Debug.Write($" {_condition.Content}");
-            }
-            Debug.WriteLine("");
         }
 
         public override void Generate()
@@ -52,6 +45,12 @@ namespace SimpleC.Types.AstNodes
                 { 
                     ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color]");
                 }
+            }else if(Type == "case" || Type == "default")
+            {
+                conditions.RemoveAt(conditions.Count - 1);  // Elimina el último elemento de la lista
+                string result = string.Join(" ", conditions);  // Une los elementos restantes con un espacio
+
+                ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color] {result}");
             }
             else
             {

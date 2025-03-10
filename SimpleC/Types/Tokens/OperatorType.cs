@@ -20,6 +20,8 @@
         Preprocessor,
         Quotes,
         AddAssignment,
-        SubtractAssignment
+        SubtractAssignment,
+        Increment,
+        Decrement
     }
 }

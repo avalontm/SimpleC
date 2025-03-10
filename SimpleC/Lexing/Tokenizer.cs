@@ -315,6 +315,7 @@ namespace SimpleC.Lexing
                 case ']':
                 case '}':
                     return CharType.CloseBrace;
+                case ':':
                 case ';':
                     return CharType.StatementSeperator;
                 case ',':

@@ -1,6 +1,7 @@
 ﻿using SimpleC.Types;
 using SimpleC.Types.AstNodes;
 using SimpleC.Types.Tokens;
+using System.Data.Common;
 using System.Diagnostics;
 
 namespace SimpleC.Parsing
@@ -82,10 +83,7 @@ namespace SimpleC.Parsing
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error al analizar: {ex.Message}");
-                // Asegúrate de devolver algo válido incluso en caso de error
-                while (scopes.Count > 1) scopes.Pop();
-                return (ProgramNode)scopes.Pop();
+                throw new Exception(ex.Message);
             }
         }
 
@@ -135,7 +133,7 @@ namespace SimpleC.Parsing
             {
                 VariableType varType = keyword.ToVariableType();
                 Token name = readToken<IdentifierToken>();
-            
+
                 if (name != null)
                 {
                     ProcessKeyword(varType, name);
@@ -145,7 +143,7 @@ namespace SimpleC.Parsing
                     ProcessOtherKeywords(keyword);
                 }
             }
-            else if (keyword.Content == "if" || keyword.Content == "else" || keyword.Content == "while" || keyword.Content == "switch")
+            else if (KeywordToken.IsKeyword(keyword.Content))
             {
                 ProcessControlFlowStatement(keyword);
             }
@@ -321,9 +319,43 @@ namespace SimpleC.Parsing
             {
                 condition = ReadUntilMatchingParenthesis();
             }
+            else if (keyword.Content == "case")
+            {
+                condition = ReadUntilCaseColon();
+            }
+            else if (keyword.Content == "default")
+            {
+                condition = ReadUntilCaseColon();
+            }
 
             statementNode.SetCondition(condition);
         }
+
+        private List<Token> ReadUntilCaseColon()
+        {
+            List<Token> tokens = new List<Token>();
+            var token = peek();  // Obtener el siguiente token
+
+            do
+            {
+                token = next();  // Obtener el siguiente token
+                tokens.Add(token);   // Agregarlo a la lista de tokens
+                Debug.WriteLine($"token: {token.Content}");
+
+                // Continuar hasta encontrar el ':' o un salto de línea
+            } while (token.Content != ":" && !eof() && token.Content != "\n" && token.Content != "\r");
+
+            // Verificar que haya encontrado ':' antes del salto de línea
+            if (token.Content != ":")
+            {
+                string errorMessage = $"Se esperaba ':' antes de un salto de línea en la línea {token.Line}, columna {token.Column}.";
+                throw new InvalidOperationException(errorMessage);
+            }
+
+            return tokens;
+        }
+
+
 
         private List<Token> ReadUntilMatchingParenthesis()
         {
@@ -401,8 +433,6 @@ namespace SimpleC.Parsing
 
         private void ProcessVariableReference(VariableNode variableNode, Token identifierToken)
         {
-            Debug.WriteLine($"VariableReference: {identifierToken.Content}");
-
             // Check if it's actually a method call
             if (peek() is OperatorToken && peek().Content == "(")
             {
@@ -464,7 +494,7 @@ namespace SimpleC.Parsing
             }
             else if (peek() is StatementSperatorToken)
             {
-                var separatorNode = new StatementSperatorNode(next().Content);
+                var separatorNode = new StatementSperatorNode(next());
                 scopes.Peek().AddStatement(separatorNode);
             }
             else if (peek() is NewLineToken)

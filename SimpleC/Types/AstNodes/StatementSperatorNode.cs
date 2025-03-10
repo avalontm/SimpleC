@@ -2,15 +2,21 @@
 {
     internal class StatementSperatorNode : StatementSequenceNode
     {
-        public string Value { get; }
+        public Token Value { get; }
 
-        public StatementSperatorNode(string value)
+        public StatementSperatorNode(Token value)
         {
             Value = value;
+        }
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"Separator: {Value}");
-            Console.ResetColor();
+        public override void Generate()
+        {
+            base.Generate();
+
+            if (Value.Content == ":")
+            {
+                ColorParser.WriteLine($"{Value.Content.Trim()}");
+            }
         }
     }
 }

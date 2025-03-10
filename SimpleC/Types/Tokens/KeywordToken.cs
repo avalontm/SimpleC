@@ -1,24 +1,29 @@
-﻿using System.Diagnostics;
-
-namespace SimpleC.Types.Tokens
+﻿namespace SimpleC.Types.Tokens
 {
     class KeywordToken : Token
     {
         private static readonly Dictionary<string, KeywordType> validKeywords = new Dictionary<string, KeywordType>()
         {
-            { "if", KeywordType.If },
-            { "else", KeywordType.Else },
             { "int", KeywordType.Int },
             { "float", KeywordType.Float },
             { "bool", KeywordType.Bool },
             { "return", KeywordType.Return },
             { "void", KeywordType.Void },
-            { "while", KeywordType.While },
             { "include", KeywordType.Include },
             { "string", KeywordType.String },
             { "char", KeywordType.Char },
             { "true", KeywordType.True },
-            { "false", KeywordType.False }
+            { "false", KeywordType.False },
+            { "default", KeywordType.Default },
+
+            { "if", KeywordType.If },
+            { "else", KeywordType.Else },
+            { "for", KeywordType.For },
+            { "switch", KeywordType.Switch },
+            { "case", KeywordType.Case },
+            { "break", KeywordType.Break },
+            { "while", KeywordType.While },
+            { "do", KeywordType.Do },
         };
 
         private static readonly Dictionary<KeywordType, VariableType> keywordTypeToVariableType = new Dictionary<KeywordType, VariableType>
@@ -47,7 +52,7 @@ namespace SimpleC.Types.Tokens
             get { return keywordTypeToVariableType.ContainsKey(KeywordType); }
         }
 
-        public KeywordToken(string content, int line, int column) : base(content, line, column) 
+        public KeywordToken(string content, int line, int column) : base(content, line, column)
         {
             if (!validKeywords.ContainsKey(content))
                 throw new ArgumentException($"El contenido no es una palabra clave válida: {content}", "content");

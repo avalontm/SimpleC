@@ -25,10 +25,12 @@ namespace SimpleC.Types.Tokens
             { "!=", OperatorType.NotEquals },
             { "|", OperatorType.Or },
             { "-", OperatorType.SubstractNegate },
-            { "#", OperatorType.Preprocessor }, 
-            { "\"", OperatorType.Quotes } ,
-            { "+=", OperatorType.AddAssignment }, 
-            { "-=", OperatorType.SubtractAssignment }, 
+            { "#", OperatorType.Preprocessor },
+            { "\"", OperatorType.Quotes },
+            { "+=", OperatorType.AddAssignment },
+            { "-=", OperatorType.SubtractAssignment },
+            { "++", OperatorType.Increment },  
+            { "--", OperatorType.Decrement }, 
         };
 
         public OperatorType OperatorType { get; private set; }
