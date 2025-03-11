@@ -47,41 +47,53 @@ namespace SimpleC
                         return;
                     }
 
+                    // Recorremos los argumentos empezando desde el índice 2, ya que args[1] es el archivo
                     for (int i = 2; i < args.Length; i++)
                     {
-                        if (args[i].ToLower() == "--diagram")
+                        string arg = args[i].ToLower();
+
+                        switch (arg)
                         {
-                            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
-                            {
-                                diagramPath = args[i + 1];
-                                i++;
-                            }
-                            else
-                            {
-                                diagramPath = "diagrama_ast.png"; 
-                            }
-                            useDiagram = true;
-                        }
-                        else if (args[i].ToLower() == "--log")
-                        {
-                            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
-                            {
-                                logFilePath = args[i + 1];
-                                i++;
-                            }
-                            else
-                            {
-                                logFilePath = "compilation_log.txt";
-                            }
-                            logEnabled = true;
-                        }
-                        else if (args[i].ToLower() == "--translate")
-                        {
-                            ParserGlobal.IsTranslate = true;
+                            case "--diagram":
+                                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                                {
+                                    diagramPath = args[i + 1]; // Asignar el valor al path del diagrama
+                                    i++; // Avanzar el índice para saltar al siguiente parámetro
+                                }
+                                else
+                                {
+                                    diagramPath = "diagrama_ast.png"; // Valor por defecto
+                                }
+                                useDiagram = true;
+                                break;
+
+                            case "--log":
+                                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                                {
+                                    logFilePath = args[i + 1]; // Asignar el valor al archivo de log
+                                    i++; // Avanzar el índice para saltar al siguiente parámetro
+                                }
+                                else
+                                {
+                                    logFilePath = "compilation_log.txt"; // Valor por defecto
+                                }
+                                logEnabled = true;
+                                break;
+
+                            case "--translate":
+                                ParserGlobal.IsTranslate = true;
+                                break;
+
+                            default:
+                                ColorParser.WriteLine($"[color=red]Error: Opción desconocida '{args[i]}'[/color]");
+                                return;
                         }
                     }
+
+                    // Compilamos el archivo especificado
                     Compile(args[1]);
                     break;
+
                 case "version":
                     PrintVersionInfo();
                     break;
