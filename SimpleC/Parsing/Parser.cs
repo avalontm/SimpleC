@@ -271,9 +271,9 @@ namespace SimpleC.Parsing
             // Agregar bloque al alcance actual
             scopes.Peek().AddStatement(blockNode);
 
-            if (scopes.Peek() is MethodNode)
+            if (scopes.Peek() is MethodNode methodNode)
             {
-                blockNode.SetParameters(Parameters);
+                blockNode.SetParameters(methodNode, Parameters);
             }
 
             // Empujar el nuevo bloque al stack de scopes
@@ -325,6 +325,7 @@ namespace SimpleC.Parsing
                 if (currentBlock is BlockNode blockNode)
                 {
                     blockNode.CloseBraceToken = token; // Guardar el token de cierre
+                    blockNode.HasReturn();
 
                     // Verificar si este bloque pertenece a una estructura de control de flujo
                     bool isControlFlowBlock = blockNode.IsControlFlowBlock;

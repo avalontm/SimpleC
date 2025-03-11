@@ -1,6 +1,7 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
 using System.Diagnostics;
+using System.Windows.Markup;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -86,9 +87,7 @@ namespace SimpleC.Types.AstNodes
                     i++;  // Saltamos la coma
                 }
             }
-
-
-
+ 
             // Finaliza el método registrando el nombre
             ParserGlobal.Register(Value, this);
         }
@@ -106,6 +105,7 @@ namespace SimpleC.Types.AstNodes
 
             ColorParser.WriteLine($"[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Value}[/color][color=magenta]([/color]{string.Join(" ", parameters)}[color=magenta])[/color]{Separator}");
 
+       
             // Llamamos al BlockNode para generar código
             foreach (var node in this.SubNodes)
             {
@@ -115,6 +115,7 @@ namespace SimpleC.Types.AstNodes
                     blockNode.Generate();
                 }
             }
+
         }
     }
 }

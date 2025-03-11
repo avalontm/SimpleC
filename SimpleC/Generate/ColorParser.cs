@@ -144,7 +144,7 @@ namespace SimpleC
                 "red" => ConsoleColor.Red,
                 "white" => ConsoleColor.White,
                 "yellow" => ConsoleColor.Yellow,
-                "orange" => ConsoleColor.DarkYellow, // Map orange to DarkYellow
+                "orange" => ConsoleColor.Red, 
                 _ => ConsoleColor.White
             };
         }
