@@ -1,4 +1,6 @@
-﻿namespace SimpleC.Types.Tokens
+﻿using SimpleC.Parsing;
+
+namespace SimpleC.Types.Tokens
 {
     class KeywordToken : Token
     {
@@ -24,6 +26,31 @@
             { "break", KeywordType.Break },
             { "while", KeywordType.While },
             { "do", KeywordType.Do },
+        };
+
+        // Diccionario con traducciones de las palabras clave
+        private static readonly Dictionary<string, string> validKeywordsTranslations = new Dictionary<string, string>()
+        {
+            { "int", "entero" },
+            { "float", "flotante" },
+            { "bool", "booleano" },
+            { "return", "retornar" },
+            { "void", "vacío" },
+            { "include", "incluir" },
+            { "string", "cadena" },
+            { "char", "carácter" },
+            { "true", "verdadero" },
+            { "false", "falso" },
+            { "default", "predeterminado" },
+
+            { "if", "si" },
+            { "else", "sino" },
+            { "for", "para" },
+            { "switch", "seleccionar" },
+            { "case", "caso" },
+            { "break", "romper" },
+            { "while", "mientras" },
+            { "do", "hacer" },
         };
 
         private static readonly Dictionary<KeywordType, VariableType> keywordTypeToVariableType = new Dictionary<KeywordType, VariableType>
@@ -70,6 +97,25 @@
         }
 
         /// <summary>
+        /// Devuelve la versión traducida de la palabra clave, si existe.
+        /// </summary>
+        public static string GetTranslatedKeyword(string s)
+        {
+            if (ParserGlobal.IsTranslate)
+            {
+                try
+                {
+                    return validKeywordsTranslations[s];
+                }
+                catch
+                {
+                    return s;
+                }
+            }
+            return s.ToLowerInvariant();
+        }
+
+        /// <summary>
         /// Devuelve el tipo de variable asociado a esta palabra clave,
         /// si esta palabra clave representa un tipo de variable.
         /// Lanza una excepción en caso contrario.
@@ -78,5 +124,6 @@
         {
             return keywordTypeToVariableType[KeywordType];
         }
+ 
     }
 }

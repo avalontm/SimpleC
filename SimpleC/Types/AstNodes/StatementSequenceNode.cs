@@ -23,6 +23,15 @@ namespace SimpleC.Types.AstNodes
             return LocalVariables.ContainsKey(name);
         }
 
+        public VariableType? Get(string key)
+        {
+            if (!Verify(key))
+            {
+                return null;
+            }
+            return LocalVariables[key];
+        }
+
         public VariableType? GetType(string name)
         {
             if (LocalVariables.TryGetValue(name, out var type))

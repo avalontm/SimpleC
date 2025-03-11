@@ -1,5 +1,6 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
+using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -7,17 +8,39 @@ namespace SimpleC.Types.AstNodes
     {
         public string Type { get; private set; }
         public List<Token> Condition { get; private set; }
+        public bool IsSwitchCase { get; private set; } = false;
+        public bool IsSwitchBlock { get; private set; } = false;
+        public Token ColonToken { get; set; } = null; // Para guardar el token ":" en case y default
 
         public ControlFlowNode(string type)
         {
             Condition = new List<Token>();
             Type = type;
             NameAst = type;
+
+            // Determinar automáticamente si es un case o default
+            if (type.ToLowerInvariant() == "case" || type.ToLowerInvariant() == "default")
+            {
+                IsSwitchCase = true;
+            }
+
+            // Determinar si es un bloque switch
+            if (type.ToLowerInvariant() == "switch")
+            {
+                IsSwitchBlock = true;
+            }
         }
 
         public void SetCondition(List<Token> condition)
         {
             Condition = condition;
+
+            // Para case/default, guardar el token de ":" si está presente
+            if (IsSwitchCase && condition.Count > 0 && condition.Last().Content == ":")
+            {
+                ColonToken = condition.Last();
+            }
+
             CheckConditionInGlobals(); // Verifica las variables al establecer la condición
         }
 
@@ -29,7 +52,7 @@ namespace SimpleC.Types.AstNodes
                 {
                     if (!this.Verify(identifierToken.Content) && !ParserGlobal.Verify(identifierToken.Content))
                     {
-                        throw new Exception($"Error en {Type.ToLowerInvariant()}: Variable '{identifierToken.Content}' no encontrada: " +
+                        throw new Exception($"Error en {KeywordToken.GetTranslatedKeyword(Type)}: Variable '{identifierToken.Content}' no encontrada: " +
                                             $"(Línea: {identifierToken.Line}, Columna: {identifierToken.Column})");
                     }
                 }
@@ -48,35 +71,35 @@ namespace SimpleC.Types.AstNodes
 
             if (Type == "else")
             {
-                if (this.SubNodes.First() is ControlFlowNode flowNode)
+                if (this.SubNodes.Count() > 0 && this.SubNodes.First() is ControlFlowNode flowNode)
                 {
                     if (flowNode.Type == "if")
                     {
-                        ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color]", false);
+                        ColorParser.WriteLine($"{Indentation}[color=magenta]{KeywordToken.GetTranslatedKeyword(Type)}[/color]", false);
                     }
                     else
                     {
-                        ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color]", true);
+                        ColorParser.WriteLine($"{Indentation}[color=magenta]{KeywordToken.GetTranslatedKeyword(Type)}[/color]", true);
                     }
                 }
                 else
                 {
-                    ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color]");
+                    ColorParser.WriteLine($"{Indentation}[color=magenta]{KeywordToken.GetTranslatedKeyword(Type)}[/color]");
                 }
             }
             else if (Type == "case" || Type == "default")
             {
                 if (conditions.Count > 0)
                 {
-                    conditions.RemoveAt(conditions.Count - 1);  // Elimina el último elemento de la lista
+                    conditions.RemoveAt(conditions.Count - 1);  // Elimina el último elemento de la lista (el ":")
                 }
                 string result = string.Join(" ", conditions);  // Une los elementos restantes con un espacio
 
-                ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color] {result}");
+                ColorParser.WriteLine($"{Indentation}[color=magenta]{KeywordToken.GetTranslatedKeyword(Type)}[/color] {result}");
             }
             else
             {
-                ColorParser.WriteLine($"{Indentation}[color=magenta]{Type.ToLowerInvariant()}[/color] {string.Join(" ", conditions)}");
+                ColorParser.WriteLine($"{Indentation}[color=magenta]{KeywordToken.GetTranslatedKeyword(Type)}[/color] {string.Join(" ", conditions)}");
             }
 
             // Llamamos al BlockNode
@@ -106,7 +129,7 @@ namespace SimpleC.Types.AstNodes
 
         public override string ToString()
         {
-            return $"{Type.ToLowerInvariant()}";
+            return $"{KeywordToken.GetTranslatedKeyword(Type)}";
         }
     }
 }

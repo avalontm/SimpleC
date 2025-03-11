@@ -8,7 +8,6 @@
         {
             NameAst = "Literal Numero";
             Value = value;
-
         }
 
         public override void Generate()

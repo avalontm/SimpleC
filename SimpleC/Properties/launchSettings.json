@@ -2,7 +2,7 @@
   "profiles": {
     "SimpleC": {
       "commandName": "Project",
-      "commandLineArgs": "compile ejemplo.c --diagram"
+      "commandLineArgs": "compile ejemplo.c --diagram --translate"
     }
   }
 }

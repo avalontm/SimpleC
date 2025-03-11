@@ -13,5 +13,10 @@ namespace SimpleC.Types.AstNodes
 
             ParserGlobal.Register(Value, this);
         }
+
+        public override void Generate()
+        {
+            base.Generate();
+        }
     }
 }

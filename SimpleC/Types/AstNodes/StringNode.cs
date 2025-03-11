@@ -1,4 +1,7 @@
-﻿namespace SimpleC.Types.AstNodes
+﻿using SimpleC.Parsing;
+using SimpleC.Types.Tokens;
+
+namespace SimpleC.Types.AstNodes
 {
     internal class StringNode : StatementSequenceNode
     {
@@ -8,6 +11,11 @@
         {
             NameAst = "Cadena de texto";
             Value = value;
+
+            if(ParserGlobal.IsTranslate)
+            {
+                Value.Content= KeywordToken.GetTranslatedKeyword(Value.Content);
+            }
         }
 
         public override void Generate()

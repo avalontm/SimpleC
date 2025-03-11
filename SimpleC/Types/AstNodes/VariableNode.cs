@@ -1,5 +1,6 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
+using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -14,7 +15,10 @@ namespace SimpleC.Types.AstNodes
         {
             this.Register(identifier.Content, type);
 
-            NameAst = $"Variable: {identifier.Content} {string.Join("", operators.Select(x=>x.Content))} {string.Join(" ", tokens.Select(x => x.Content))}";
+            Type = type;
+            Identifier = identifier;
+            Debug.WriteLine($"VariableNode: {identifier.Content}");
+            NameAst = $"Variable: {identifier.Content} {string.Join("", operators.Select(x => x.Content))} {string.Join(" ", tokens.Select(x => x.Content))}";
             Values = new List<Token>();
 
             if (type != VariableType.Int && type != VariableType.Float &&
@@ -24,8 +28,11 @@ namespace SimpleC.Types.AstNodes
                 throw new Exception($"Se esperaba un tipo de variable válido");
             }
 
-            Type = type;
-            Identifier = identifier;
+            // Verificar que los tokens terminen con ';'
+            if (tokens.Count > 0 && tokens.Last() is not StatementSperatorToken && tokens.Last().Content != ";")
+            {
+                throw new Exception($"Error de sintaxis: Se esperaba ';' al final de la declaración de la variable '{identifier.Content}'");
+            }
 
             // Procesamiento normal de la variable
             if (operators.Count > 0)
@@ -65,8 +72,8 @@ namespace SimpleC.Types.AstNodes
                     }
                 }
             }
-
         }
+
 
         private int FindMatchingParenthesis(List<Token> tokens)
         {
@@ -167,8 +174,10 @@ namespace SimpleC.Types.AstNodes
                 if (variable != null) return variable.Type;
             }
 
-            throw new Exception($"Error: No se puede determinar el tipo de '{token.Content}'");
+            // Lanzar una excepción con información de línea y columna
+            throw new Exception($"Error: No se puede determinar el tipo de '{token.Content}' en la línea {token.Line}, columna {token.Column}");
         }
+
 
         private bool AreCompatibleTypes(VariableType type1, VariableType type2, VariableType expectedType)
         {
@@ -195,7 +204,7 @@ namespace SimpleC.Types.AstNodes
                 values.Add(ColorParser.GetTokenColor(value));
             }
 
-            ColorParser.WriteLine($"{Indentation}[color=blue]{Type.ToLowerString()}[/color] [color=yellow]{Identifier.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
+            ColorParser.WriteLine($"{Indentation}[color=blue]{Type.ToLowerString()}[/color] [color=cyan]{Identifier.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
 
         }
     }

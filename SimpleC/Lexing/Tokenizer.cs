@@ -1,7 +1,6 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types;
 using SimpleC.Types.Tokens;
-using System.Globalization;
 using System.Text;
 
 namespace SimpleC.Lexing
@@ -175,15 +174,25 @@ namespace SimpleC.Lexing
 
         private void skipMultiLineComment()
         {
+            // Skip the opening /* (which should have already been identified)
+            next(); // Skip /
+            next(); // Skip *
+
             while (!eof())
             {
-                if (peek() == '*' && next() == '/')
+                char current = peek();
+
+                if (current == '*' && !eof(1) && Code[readingPosition + 1] == '/')
                 {
-                    next();
+                    next(); // Skip *
+                    next(); // Skip /
                     break;
                 }
-                if (peek() == '\n') HandleNewLine();
-                next();
+
+                if (current == '\n')
+                    HandleNewLine();
+                else
+                    next(); // Only advance if not already handled by HandleNewLine
             }
         }
 

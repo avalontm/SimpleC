@@ -1,4 +1,5 @@
 ﻿using SimpleC.Types.Tokens;
+using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -12,6 +13,11 @@ namespace SimpleC.Types.AstNodes
             NameAst = $"Palabra clave: {name}";
             Variable = varType;
             Value = name;
+        }
+
+        public override void Generate()
+        {
+            base.Generate();
         }
     }
 }

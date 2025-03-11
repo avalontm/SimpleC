@@ -63,7 +63,6 @@ namespace SimpleC.Parsing
         public ProgramNode ParseToAst()
         {
             scopes.Push(new ProgramNode());
-
             try
             {
                 while (!eof())
@@ -74,16 +73,26 @@ namespace SimpleC.Parsing
                 // Antes de verificar el conteo, asegúrate de que todos los alcances estén correctamente balanceados
                 while (scopes.Count > 1)
                 {
-                    // Esto vaciará cualquier alcance restante
-                    scopes.Pop();
+                    var scope = scopes.Pop();
+                    if (scope is BlockNode blockNode && !blockNode.IsComplete())
+                    {
+                        // Obtener la ubicación de la llave de apertura para el bloque incompleto
+                        Token openBrace = blockNode.OpenBraceToken;
+                        throw new ParsingException(
+                            $"Error de sintaxis en línea {openBrace.Line}, columna {openBrace.Column}: " +
+                            "bloque abierto pero nunca cerrado al final del archivo.");
+                    }
                 }
-
                 return (ProgramNode)scopes.Pop();
             }
             catch (Exception ex)
             {
+#if DEBUG
+                ColorParser.WriteLine($"[color=red]{ex}[/color]");
+#else
                 ColorParser.WriteLine($"[color=red]{ex.Message}[/color]");
-                return (ProgramNode)scopes.Pop();
+#endif
+                return null;
             }
         }
 
@@ -157,24 +166,28 @@ namespace SimpleC.Parsing
         {
             var identifierToken = (IdentifierToken)next();
 
-            // Verificar si es un tipo personalizado
-            if (IsCustomType(identifierToken.Content))
-            {
-                VariableType varType = MapStringToVarType(identifierToken.Content);
-                Token name = readToken<IdentifierToken>();
-                if (name != null)
-                {
-                    ProcessKeyword(varType, name);
-                }
-                return;
-            }
-
             if (!KeywordToken.IsKeyword(identifierToken.Content))
             {
-
+                // Verificar si el identificador existe en alguno de los ámbitos (local o global)
                 if (scopes.Peek().Verify(identifierToken.Content) || ParserGlobal.Verify(identifierToken.Content))
                 {
-                    var node = ParserGlobal.Get(identifierToken.Content);
+                    // Intentar obtener el nodo desde el ámbito local primero
+                    bool islocal = scopes.Peek().Verify(identifierToken.Content);
+                    StatementSequenceNode? node = null;
+
+                    // Si no se encuentra en el ámbito local, intentar obtenerlo del ámbito global
+                    if (!islocal)
+                    {
+                        node = ParserGlobal.Get(identifierToken.Content);
+                    }
+
+                    if(islocal)
+                    {
+                        var vartype = scopes.Peek().Get(identifierToken.Content);
+                        ProcessVariableReference(new VariableNode(vartype.Value, identifierToken, new List<Token>(), new List<Token>()), identifierToken);
+                        return;
+                    }
+                    // Procesar el nodo según su tipo
                     if (node is VariableNode variableNode)
                     {
                         ProcessVariableReference(variableNode, identifierToken);
@@ -198,26 +211,6 @@ namespace SimpleC.Parsing
 
             var idNode = new IdentifierNode(identifierToken.Content);
             scopes.Peek().AddStatement(idNode);
-        }
-
-        private bool IsCustomType(string content)
-        {
-            return content == "string" || content == "int" || content == "float" ||
-                   content == "char" || content == "bool" || content == "void";
-        }
-
-        private VariableType MapStringToVarType(string content)
-        {
-            switch (content)
-            {
-                case "string": return VariableType.String;
-                case "int": return VariableType.Int;
-                case "float": return VariableType.Float;
-                case "char": return VariableType.Char;
-                case "bool": return VariableType.Bool;
-                case "void": return VariableType.Void;
-                default: return VariableType.Void;
-            }
         }
 
         private void ProcessStringToken()
@@ -258,8 +251,11 @@ namespace SimpleC.Parsing
             var token = next(); // Consume '{'
             List<ParameterNode> Parameters = new List<ParameterNode>();
 
-            Debug.WriteLine($"Abriendo bloque: {token.Content}");
             BlockNode blockNode = new BlockNode();
+            blockNode.OpenBraceToken = token; // Guardar el token de apertura
+
+            // Determinar si este bloque pertenece a un nodo de control de flujo
+            bool isControlFlowBlock = scopes.Peek() is ControlFlowNode;
 
             if (scopes.Peek() is MethodNode)
             {
@@ -283,7 +279,12 @@ namespace SimpleC.Parsing
             // Empujar el nuevo bloque al stack de scopes
             scopes.Push(blockNode);
 
- 
+            // Si es un bloque de control de flujo, marcar de alguna manera
+            if (isControlFlowBlock)
+            {
+                blockNode.IsControlFlowBlock = true; // Necesitarás agregar esta propiedad a BlockNode
+            }
+
             // Asegurar que el contador de llaves está sincronizado
             if (bracketCounter.Count == 0)
             {
@@ -295,10 +296,10 @@ namespace SimpleC.Parsing
             }
         }
 
+        // Modificaciones al método ProcessCloseBrace para manejar correctamente el cierre de bloques
         private void ProcessCloseBrace()
         {
             var token = next(); // Consume '}'
-            Debug.WriteLine($"Cerrando bloque: {token.Content} (Línea: {token.Line}, Columna: {token.Column})");
 
             if (bracketCounter.Count == 0)
             {
@@ -317,7 +318,30 @@ namespace SimpleC.Parsing
             // Cerrar el alcance actual
             if (scopes.Count > 1)
             {
-                scopes.Pop();
+                // Obtener el bloque actual antes de sacarlo de la pila
+                var currentBlock = scopes.Peek();
+
+                // Guardar el token de cierre en el bloque actual
+                if (currentBlock is BlockNode blockNode)
+                {
+                    blockNode.CloseBraceToken = token; // Guardar el token de cierre
+
+                    // Verificar si este bloque pertenece a una estructura de control de flujo
+                    bool isControlFlowBlock = blockNode.IsControlFlowBlock;
+
+                    // Quitar el bloque actual de la pila
+                    scopes.Pop();
+
+                    // Si el bloque era parte de un control de flujo, también sacamos ese nodo
+                    if (isControlFlowBlock && scopes.Count > 0 && scopes.Peek() is ControlFlowNode)
+                    {
+                        scopes.Pop();
+                    }
+                }
+                else
+                {
+                    scopes.Pop();
+                }
 
                 // Si el nuevo scope en la pila es un `MethodNode` y `count == 0`, cerrar el método
                 if (count == 0 && scopes.Count > 0 && scopes.Peek() is MethodNode)
@@ -339,9 +363,11 @@ namespace SimpleC.Parsing
             scopes.Peek().AddStatement(statementNode);
             scopes.Push(statementNode);
 
+         
             if (peek() is OpenBraceToken && !eof() && peek().Content == "(")
             {
                 condition = ReadUntilMatchingParenthesis();
+         
             }
             else if (keyword.Content == "case")
             {
@@ -351,7 +377,7 @@ namespace SimpleC.Parsing
             {
                 condition = ReadUntilCaseColon();
             }
-
+            
             statementNode.SetCondition(condition);
         }
 
@@ -364,13 +390,12 @@ namespace SimpleC.Parsing
             {
                 token = next();  // Obtener el siguiente token
                 tokens.Add(token);   // Agregarlo a la lista de tokens
-                Debug.WriteLine($"token: {token.Content}");
 
                 // Continuar hasta encontrar el ':' o un salto de línea
-            } while (token.Content != ":" && !eof() && token.Content != "\n" && token.Content != "\r");
+            } while (!(token is  StatementSperatorToken && token.Content == ":") && !(eof() && token is not NewLineToken));
 
             // Verificar que haya encontrado ':' antes del salto de línea
-            if (token.Content != ":")
+            if (!(token is StatementSperatorToken && token.Content == ":"))
             {
                 string errorMessage = $"Se esperaba ':' antes de un salto de línea en la línea {token.Line}, columna {token.Column}.";
                 throw new InvalidOperationException(errorMessage);
@@ -378,8 +403,6 @@ namespace SimpleC.Parsing
 
             return tokens;
         }
-
-
 
         private List<Token> ReadUntilMatchingParenthesis()
         {
@@ -391,6 +414,11 @@ namespace SimpleC.Parsing
                 var token = next();
                 tokens.Add(token);
 
+                if (token is NewLineToken)
+                {
+                    throw new Exception($"No se encontró un ')' antes de un salto de línea. (Línea: {token.Line}, Columna: {token.Column})");
+                }
+
                 if (token.Content == "(")
                     parenthesisLevel++;
                 else if (token.Content == ")")
@@ -398,8 +426,14 @@ namespace SimpleC.Parsing
 
             } while (parenthesisLevel > 0 && !eof());
 
+            if (parenthesisLevel > 0)
+            {
+                throw new Exception($"Falta un ')' para cerrar el paréntesis. (Línea: {tokens.Last().Line}, Columna: {tokens.Last().Column})");
+            }
+
             return tokens;
         }
+
 
         private void ProcessMethodCall(MethodNode methodNode, Token identifierToken)
         {
@@ -410,16 +444,25 @@ namespace SimpleC.Parsing
                 arguments = ReadUntilMatchingParenthesis();
             }
 
+            // Filtro para ignorar los NewLineTokens
+            while (peek() is not StatementSperatorToken && peek() is not NewLineToken)
+            {
+                next();
+            }
+
+            if (peek() is StatementSperatorToken && peek().Content == ";")
+            {
+                arguments.Add(next());  
+            }
+
+            // Crear el nodo de llamada al método
             var methodCallNode = new MethodCallNode(methodNode.Type, identifierToken.Content, arguments);
             scopes.Peek().AddStatement(methodCallNode);
-
-            if (peek() is StatementSperatorToken)
-                next();
         }
+
 
         private void ProcessUndeclaredMethodCall(Token identifierToken)
         {
-            Debug.WriteLine($"UndeclaredMethodCall: {identifierToken.Content}");
             List<Token> arguments = new List<Token>();
 
             if (peek().Content == "(")
@@ -446,7 +489,6 @@ namespace SimpleC.Parsing
 
         private VariableType DetermineReturnType(string methodName)
         {
-            Debug.WriteLine($"DetermineReturnType: {methodName}");
             switch (methodName)
             {
                 case "printf": return VariableType.Void;
@@ -457,42 +499,55 @@ namespace SimpleC.Parsing
 
         private void ProcessVariableReference(VariableNode variableNode, Token identifierToken)
         {
-            // Check if it's actually a method call
+            // Verificar si es una llamada a método (ejemplo: variable())
             if (peek() is OperatorToken && peek().Content == "(")
             {
                 List<Token> arguments = ReadUntilMatchingParenthesis();
                 var methodCallNode = new MethodCallNode(variableNode.Type, identifierToken.Content, arguments);
                 scopes.Peek().AddStatement(methodCallNode);
 
-                if (peek().Content == ";")
+                // Si hay un punto y coma al final, consumirlo
+                if (!eof() && peek().Content == ";")
                     next();
                 return;
             }
 
-            // Check for assignment
-            if (peek() is OperatorToken && peek().Content == "=")
-            {
-                next(); // Consume '='
+            // Lista para almacenar todos los operadores encontrados
+            List<Token> operatorTokens = new List<Token>();
 
+            // Si se encuentra un operador, agregar todos los operadores consecutivos a la lista
+            while (!eof() && peek() is OperatorToken)
+            {
+                operatorTokens.Add(next()); // Consumir y agregar a la lista
+            }
+
+            // Verificar si después de los operadores hay una asignación de valor
+            if (operatorTokens.Count > 0)
+            {
                 List<Token> valueTokens = new List<Token>();
+
+                // Recoger los valores hasta encontrar un punto y coma
                 while (!eof() && peek().Content != ";")
                 {
                     valueTokens.Add(next());
                 }
 
+                // Si hay un punto y coma al final, consumirlo
                 if (!eof() && peek().Content == ";")
                     next();
 
-                var assignmentNode = new AssignmentNode(identifierToken, valueTokens);
+                // Crear un nodo de asignación con la variable, operadores y valores
+                var assignmentNode = new AssignmentNode(identifierToken, operatorTokens, valueTokens);
                 scopes.Peek().AddStatement(assignmentNode);
             }
             else
             {
-                // Simple variable reference
+                // Si no hay operadores, es una referencia simple a la variable
                 var varRefNode = new VariableReferenceNode(identifierToken, variableNode.Type);
                 scopes.Peek().AddStatement(varRefNode);
             }
         }
+
 
         private void ProcessOtherTokens()
         {
@@ -556,7 +611,6 @@ namespace SimpleC.Parsing
             }
             else
             {
-                // Other keywords like break, continue, etc.
                 var keywordNode = new KeywordNode(keyword.ToVariableType(), keyword.Content);
                 scopes.Peek().AddStatement(keywordNode);
 
@@ -606,27 +660,37 @@ namespace SimpleC.Parsing
                 List<Token> operatorTokens = new List<Token>();
                 List<Token> valueTokens = new List<Token>();
 
-                while (!eof() && peek() is OperatorToken)
+                // Ignorar los NewLineToken mientras que el próximo token sea un operador
+                while (!eof() && peek() is OperatorToken && peek() is not NewLineToken)
                 {
                     operatorTokens.Add(next());
                 }
 
+                // Si se han encontrado operadores, procesar los valores
                 if (operatorTokens.Count > 0)
                 {
-                    while (!eof() && peek() is not StatementSperatorToken)
+                    // Ignorar NewLineToken mientras que el próximo token no sea un StatementSperatorToken
+                    while (!eof() && peek() is not StatementSperatorToken && peek() is not NewLineToken)
                     {
                         valueTokens.Add(next());
                     }
                 }
 
+                // Si encontramos un StatementSperatorToken, lo agregamos
                 if (!eof() && peek() is StatementSperatorToken)
                 {
-                    var token = next();
+                    valueTokens.Add(next());
                 }
 
+                // Determinar si la variable es global (según el contador de paréntesis)
                 bool isGlobalVar = bracketCounter.Count == 0;
+
+                // Crear un nodo de variable
                 var variableNode = new VariableNode(varType, name, operatorTokens, valueTokens);
+
+                // Agregar el nodo al alcance actual
                 scopes.Peek().AddStatement(variableNode);
+
             }
         }
 

@@ -5,6 +5,7 @@ namespace SimpleC.Parsing
 {
     public static class ParserGlobal
     {
+        public static bool IsTranslate = false;
         static Dictionary<string, StatementSequenceNode> Global = new Dictionary<string, StatementSequenceNode>();
 
         public static void Register(string key, StatementSequenceNode node)

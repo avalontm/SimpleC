@@ -1,4 +1,7 @@
-﻿namespace SimpleC.Types.AstNodes
+﻿using SimpleC.Parsing;
+using SimpleC.Types.Tokens;
+
+namespace SimpleC.Types.AstNodes
 {
     internal class PreprocessorNode : StatementSequenceNode
     {
@@ -19,6 +22,10 @@
             _tokens.MoveNext();
             Identifier = _tokens.Current.Content;
 
+            if(ParserGlobal.IsTranslate)
+            {
+                Identifier  = KeywordToken.GetTranslatedKeyword(Identifier);
+            }
             _tokens.MoveNext();
 
             if (_tokens.Current.Content.Contains("\""))
