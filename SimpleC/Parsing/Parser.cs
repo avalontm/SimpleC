@@ -508,11 +508,11 @@ namespace SimpleC.Parsing
                 ParserGlobal.Register(identifierToken.Content, methodNode);
             }
 
+            if (peek().Content == ";")
+                arguments.Add(next());
+
             var methodCallNode = new MethodCallNode(returnType, identifierToken.Content, arguments);
             scopes.Peek().AddStatement(methodCallNode);
-
-            if (peek().Content == ";")
-                next();
         }
 
         private VariableType DetermineReturnType(string methodName)
@@ -694,27 +694,12 @@ namespace SimpleC.Parsing
                     operatorTokens.Add(next());
                 }
 
-                // Si se han encontrado operadores, procesar los valores
-                if (operatorTokens.Count > 0)
-                {
-                    // Ignorar NewLineToken mientras que el próximo token no sea un StatementSperatorToken
-                    while (!eof() && peek() is not StatementSperatorToken && peek() is not NewLineToken)
-                    {
-                        valueTokens.Add(next());
-                    }
-                }
-
-                // Si encontramos un StatementSperatorToken, lo agregamos
-                if (!eof() && peek() is StatementSperatorToken)
-                {
-                    valueTokens.Add(next());
-                }
 
                 // Determinar si la variable es global (según el contador de paréntesis)
                 bool isGlobalVar = bracketCounter.Count == 0;
 
                 // Crear un nodo de variable
-                var variableNode = new VariableNode(varType, name, operatorTokens, valueTokens);
+                var variableNode = new VariableNode(varType, name, operatorTokens, GetTokens());
 
                 // Agregar el nodo al alcance actual
                 scopes.Peek().AddStatement(variableNode);

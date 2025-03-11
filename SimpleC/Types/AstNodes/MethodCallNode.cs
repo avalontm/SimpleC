@@ -9,7 +9,7 @@ namespace SimpleC.Types.AstNodes
         public VariableType ReturnType { get; }
         public string Value { get; private set; }
         public List<Token> Arguments { get; private set; }
-
+        Token separator;
         public MethodCallNode(VariableType returnType, string name, List<Token> arguments) : base()
         {
             NameAst = $"Llamada de metodo: {name}";
@@ -79,6 +79,7 @@ namespace SimpleC.Types.AstNodes
             var lastToken = Arguments.LastOrDefault();
             if (lastToken != null && lastToken is StatementSperatorToken statement && statement.Content == ";")
             {
+                separator = lastToken;
                 Arguments.Remove(lastToken); 
             }
             else if (lastToken != null)
@@ -115,7 +116,7 @@ namespace SimpleC.Types.AstNodes
             {
                 arguments.Add(ColorParser.GetTokenColor(arg));
             }
-            ColorParser.WriteLine($"{Indentation}[color=yellow]{Value}[/color] {string.Join(" ", arguments)}");
+            ColorParser.WriteLine($"{Indentation}[color=yellow]{Value}[/color] {string.Join(" ", arguments)} {separator.Content}");
         }
     }
 }
