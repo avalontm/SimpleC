@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SimpleC.Types.Tokens
+﻿namespace SimpleC.Types.Tokens
 {
     class OperatorToken : Token
     {
@@ -29,8 +23,8 @@ namespace SimpleC.Types.Tokens
             { "\"", OperatorType.Quotes },
             { "+=", OperatorType.AddAssignment },
             { "-=", OperatorType.SubtractAssignment },
-            { "++", OperatorType.Increment },  
-            { "--", OperatorType.Decrement }, 
+            { "++", OperatorType.Increment },
+            { "--", OperatorType.Decrement },
         };
 
         public OperatorType OperatorType { get; private set; }
@@ -38,7 +32,8 @@ namespace SimpleC.Types.Tokens
         public OperatorToken(string content, int line, int column) : base(content, line, column)
         {
             if (!validOperators.ContainsKey(content))
-                throw new ArgumentException("The content is no valid operator.", "content");
+                throw new ArgumentException("El contenido no es un operador válido.", $"{content}");
+
 
             OperatorType = validOperators[content];
         }

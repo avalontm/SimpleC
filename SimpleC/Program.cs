@@ -6,7 +6,7 @@ namespace SimpleC
 {
     class Program
     {
-        const string VERSION = "1.0.4";
+        const string VERSION = "1.0.5";
         const string AUTHOR1 = "Desarrollado por los estudiantes:";
         const string AUTHOR2 = "*Jaime Raul Mendez Lopez (23760194)";
         const string AUTHOR3 = "*Scarleth Yoceleth Arroyo Dominguez (23760193)";
@@ -15,23 +15,19 @@ namespace SimpleC
         static bool logEnabled = false;
         static string diagramPath = "diagrama_ast.png";
         static string logFilePath = "compilation_log.txt";
-        // El ancho del marco se determinará dinámicamente basado en el ancho de la consola
         static int frameWidth;
 
         static void Main(string[] args)
         {
             Console.ResetColor();
 
-            // Obtenemos el ancho de la consola y establecemos el ancho del marco
-            // Si el ancho es muy pequeño, usamos un valor mínimo
             try
             {
                 frameWidth = Math.Max(65, Console.WindowWidth - 5);
             }
             catch
             {
-                // Si hay algún error al acceder a Console.WindowWidth (por ejemplo, en entornos sin consola)
-                frameWidth = 65; // Valor predeterminado
+                frameWidth = 65; 
             }
 
             PrintHeader();
@@ -58,12 +54,11 @@ namespace SimpleC
                             if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
                             {
                                 diagramPath = args[i + 1];
-                                i++; // Skip the next argument since it's the path for the diagram
+                                i++;
                             }
                             else
                             {
-                                // Si no se proporciona una ruta, toma la ruta por defecto
-                                diagramPath = "diagrama_ast.png"; // Ruta por defecto para el diagrama
+                                diagramPath = "diagrama_ast.png"; 
                             }
                             useDiagram = true;
                         }
@@ -72,18 +67,17 @@ namespace SimpleC
                             if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
                             {
                                 logFilePath = args[i + 1];
-                                i++; // Skip the next argument since it's the path for the log file
+                                i++;
                             }
                             else
                             {
-                                // Si no se proporciona una ruta, toma la ruta por defecto
-                                logFilePath = "compilation_log.txt"; // Ruta por defecto para el log
+                                logFilePath = "compilation_log.txt";
                             }
                             logEnabled = true;
                         }
                         else if (args[i].ToLower() == "--translate")
                         {
-                            ParserGlobal.IsTranslate = true; // Activamos la opción de traducción
+                            ParserGlobal.IsTranslate = true;
                         }
                     }
                     Compile(args[1]);
@@ -102,7 +96,6 @@ namespace SimpleC
             }
         }
 
-        // Método auxiliar para crear líneas de ancho consistente
         static string CreateHorizontalLine(char leftChar, char middleChar, char rightChar)
         {
             StringBuilder sb = new StringBuilder();
@@ -115,7 +108,6 @@ namespace SimpleC
             return sb.ToString();
         }
 
-        // Método auxiliar para crear líneas con contenido centrado
         static string CreateContentLine(string content, char borderChar = '║')
         {
             // Eliminar los códigos de color para calcular la longitud real
@@ -138,8 +130,6 @@ namespace SimpleC
             sb.Append(borderChar);
             return sb.ToString();
         }
-
-        // Método auxiliar para crear líneas con contenido alineado a la izquierda
         static string CreateLeftAlignedLine(string content, char borderChar = '║', int leftIndent = 2)
         {
             // Eliminar los códigos de color para calcular la longitud real
@@ -272,26 +262,30 @@ namespace SimpleC
 
             ColorParser.WriteLine("[color=green]✓ Análisis sintáctico completado[/color]");
 
-            // Code Generation
-            ColorParser.WriteLine("\n[color=yellow]▶ FASE 3: GENERACIÓN DE CÓDIGO[/color]");
+            // Codigo generado
+            ColorParser.WriteLine($"\n[color=cyan]{CreateHorizontalLine('╔', '═', '╗')}[/color]");
+            ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]C O D I G O [/color]")}[/color]");
+            ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╚', '═', '╝')}[/color]");
+            Console.WriteLine();
+
             foreach (var node in ast.SubNodes)
             {
                 node.Generate();
             }
+
+            Console.WriteLine();
             ColorParser.WriteLine("[color=green]✓ Generación de código completada[/color]");
 
-            // Success message
             ColorParser.WriteLine($"\n[color=cyan]{CreateHorizontalLine('╔', '═', '╗')}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]COMPILACIÓN EXITOSA[/color]")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╚', '═', '╝')}[/color]");
 
-            // Log the successful parsing
             if (logEnabled)
             {
                 File.AppendAllText(logFilePath, $"Compilación exitosa: {DateTime.Now}\n");
             }
 
-            // Generate diagram if enabled
+            // Generamos el diagrama si esta activado
             if (useDiagram)
             {
                 ColorParser.WriteLine($"\n[color=yellow]▶ GENERANDO DIAGRAMA AST[/color]");

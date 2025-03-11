@@ -2,19 +2,19 @@
 {
     internal class NumberLiteralNode : StatementSequenceNode
     {
-        public Token Value { get; }
+        public List<Token> Values { get; }
 
-        public NumberLiteralNode(Token value)
+        public NumberLiteralNode(List<Token> values)
         {
             NameAst = "Literal Numero";
-            Value = value;
+            Values = values;
+            VerifySeparator(Values);
         }
 
         public override void Generate()
         {
             base.Generate();
-
-            ColorParser.WriteLine(ColorParser.GetTokenColor(Value));
+            PrintValues(Values);
         }
     }
 }

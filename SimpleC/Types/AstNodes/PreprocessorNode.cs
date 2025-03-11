@@ -1,5 +1,6 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
+using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -9,55 +10,57 @@ namespace SimpleC.Types.AstNodes
         public Token Library { get; }
         public bool IsFile { get; }
 
-        public PreprocessorNode(IEnumerable<Token> tokens)
+        public PreprocessorNode(List<Token> tokens)
         {
             NameAst = "Preprocesador: Incluir";
-            var _tokens = tokens.GetEnumerator();
 
-            _tokens.MoveNext();
+            Debug.WriteLine("");
+            // Primer token debe ser un '#'
+            if (tokens[0].Content != "#")
+                throw new ArgumentException($"Se esperaba un '#', pero se encontró '{tokens[0].Content}'", nameof(tokens));
 
-            if (!_tokens.Current.Content.Contains("#"))
-                throw new ArgumentException($"Se esperaba un: #", "content");
+            Identifier = tokens[1].Content;
 
-            _tokens.MoveNext();
-            Identifier = _tokens.Current.Content;
-
-            if(ParserGlobal.IsTranslate)
+            // Traducción del identificador si es necesario
+            if (ParserGlobal.IsTranslate)
             {
-                Identifier  = KeywordToken.GetTranslatedKeyword(Identifier);
-            }
-            _tokens.MoveNext();
-
-            if (_tokens.Current.Content.Contains("\""))
-            {
-                IsFile = true;
-            }
-            _tokens.MoveNext();
-
-            if (string.IsNullOrEmpty(_tokens.Current.Content))
-            {
-                throw new ArgumentException("Se esperaba un nombre de la libraria.");
+                Identifier = KeywordToken.GetTranslatedKeyword(Identifier);
             }
 
-            Library = _tokens.Current;
+            // Verificación del delimitador de apertura '<' o '"'
+            if (tokens[2].Content != "<" && tokens[2].Content != "\"")
+                throw new ArgumentException($"Se esperaba '<' o '\"' después de '{Identifier}', pero se encontró '{tokens[2].Content}'", nameof(tokens));
 
-            //Esperamos hasta movernos hasta el final del los tokens.
-            while (!_tokens.MoveNext()) ;
+            char openingChar = tokens[2].Content[0]; // Guardar el delimitador de apertura
+            char closingChar = (openingChar == '<') ? '>' : '"';
+            IsFile = (openingChar == '"');
 
+            // Validar el nombre de la librería
+            if (string.IsNullOrEmpty(tokens[3].Content) || tokens[3].Content == closingChar.ToString())
+                throw new ArgumentException("Se esperaba el nombre de la librería, pero no se proporcionó.", nameof(tokens));
+
+            Library = tokens[3];
+
+            // Verificación del delimitador de cierre
+            if (tokens.Count < 5 || tokens[4].Content != closingChar.ToString())
+                throw new ArgumentException($"Falta el delimitador de cierre '{closingChar}', o hay tokens adicionales no esperados.", nameof(tokens));
         }
 
         public override void Generate()
         {
             base.Generate();
 
-            string Content = $"{Indentation}[color=magenta]#{Identifier}[/color] [color=orange]<[/color]{ColorParser.GetTokenColor(Library)}[color=orange]>[/color]";
-
+            string content = $"{Indentation}[color=magenta]#{Identifier}[/color] ";
             if (IsFile)
             {
-                Content = $"{Indentation}[color=magenta]#{Identifier}[/color] [color=orange]\"[/color]{ColorParser.GetTokenColor(Library)}[color=orange]\"[/color]";
+                content += $"[color=orange]\"[/color]{ColorParser.GetTokenColor(Library)}[color=orange]\"[/color]";
+            }
+            else
+            {
+                content += $"[color=orange]<[/color]{ColorParser.GetTokenColor(Library)}[color=orange]>[/color]";
             }
 
-            ColorParser.WriteLine(Content);
+            ColorParser.WriteLine(content);
         }
     }
 }

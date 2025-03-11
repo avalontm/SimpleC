@@ -2,6 +2,7 @@
 using SimpleC.Types.AstNodes;
 using SimpleC.Types.Tokens;
 using System.Diagnostics;
+using System.Text;
 
 namespace SimpleC.Parsing
 {
@@ -213,37 +214,63 @@ namespace SimpleC.Parsing
             scopes.Peek().AddStatement(idNode);
         }
 
+        private List<Token> GetProcessorTokens()
+        {
+            List<Token> tokens = new List<Token>();
+
+            // Procesar los tokens hasta que encontremos el cierre esperado (">" o "\"") o un salto de línea
+            while (!(peek() is StatementSperatorToken && (peek().Content == ">" || peek().Content == "\"")) && !(peek() is NewLineToken))
+            {
+                var token = next();
+                tokens.Add(token);
+                Debug.WriteLine(token.Content);
+            }
+
+            // Si el siguiente token es un delimitador de cierre, lo agregamos a la lista de tokens
+            if (peek() is StatementSperatorToken && (peek().Content == ">" || peek().Content == "\""))
+            {
+                tokens.Add(next());
+            }
+
+            // Si encontramos un salto de línea, lo agregamos también
+            if (peek() is NewLineToken)
+            {
+                tokens.Add(next());
+            }
+
+            return tokens;
+        }
+
+
+        private List<Token> GetTokens()
+        {
+            List<Token> tokens = new List<Token>();
+
+            while (!(peek() is StatementSperatorToken && peek().Content == ";") && peek() is not NewLineToken)
+            {
+                var token = next();
+                tokens.Add(token);
+            }
+
+            if (peek() is StatementSperatorToken && peek().Content == ";" )
+            {
+                tokens.Add(peek());
+            }
+
+            return tokens;
+        }
+
         private void ProcessStringToken()
         {
-            var stringNode = new StringNode(next());
+            var stringNode = new StringNode(GetTokens());
             scopes.Peek().AddStatement(stringNode);
-
-            if (peek() is StatementSperatorToken)
-                next();
         }
 
         private void ProcessPreprocessor()
         {
-            Token preprocessorToken = next();
-            List<Token> preprocessorTokens = new List<Token> { preprocessorToken };
-
-            if (preprocessorToken.Content == "#" && !eof() && peek().Content == "include")
-            {
-                preprocessorTokens.Add(next()); // include
-
-                // Read until end of line or semicolon
-                while (!eof() && peek().Content != "\n" && peek() is not StatementSperatorToken)
-                {
-                    var token = next();
-                    preprocessorTokens.Add(token);
-                }
-
-                var preprocessorNode = new PreprocessorNode(preprocessorTokens);
-                scopes.Peek().AddStatement(preprocessorNode);
-
-                if (!eof() && (peek() is NewLineToken || peek() is StatementSperatorToken))
-                    next();
-            }
+            // Crear y agregar el nodo de preprocesador
+            var preprocessorNode = new PreprocessorNode(GetProcessorTokens());
+            scopes.Peek().AddStatement(preprocessorNode);
         }
 
         private void ProcessOpenBrace()
@@ -559,7 +586,7 @@ namespace SimpleC.Parsing
             }
             else if (peek() is NumberLiteralToken)
             {
-                var numberNode = new NumberLiteralNode(next());
+                var numberNode = new NumberLiteralNode(GetTokens());
                 scopes.Peek().AddStatement(numberNode);
             }
             else if (peek() is FloatLiteralToken)

@@ -30,5 +30,6 @@ namespace SimpleC.Lexing
         Brace = OpenBrace | CloseBrace,
         MetaChar = Operator | Brace | ArgSeperator | StatementSeperator | Preprocessor | SingleLineComment | MultiLineComment | StringDelimiter | CharDelimiter | EscapeChar | CharPointer | CharArray,
         All = AlphaNumeric | WhiteSpace | MetaChar,
+        SpecialCharacter = 131064,
     }
 }

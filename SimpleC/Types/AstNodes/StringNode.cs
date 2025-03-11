@@ -1,28 +1,23 @@
-﻿using SimpleC.Parsing;
-using SimpleC.Types.Tokens;
+﻿using SimpleC.Types.Tokens;
 
 namespace SimpleC.Types.AstNodes
 {
     internal class StringNode : StatementSequenceNode
     {
-        public Token Value;
+        public List<Token> Values;
 
-        public StringNode(Token value)
+        public StringNode(List<Token> values)
         {
             NameAst = "Cadena de texto";
-            Value = value;
+            Values = values;
 
-            if(ParserGlobal.IsTranslate)
-            {
-                Value.Content= KeywordToken.GetTranslatedKeyword(Value.Content);
-            }
+            VerifySeparator(values);
         }
 
         public override void Generate()
         {
             base.Generate();
-
-            ColorParser.WriteLine($"\"{ColorParser.GetTokenColor(Value)}\"");
+            PrintValues(Values);
         }
     }
 }

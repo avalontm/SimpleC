@@ -1,4 +1,6 @@
-﻿namespace SimpleC.Types
+﻿using SimpleC.Types.Tokens;
+
+namespace SimpleC.Types
 {
     public abstract class AstNode
     {
@@ -24,5 +26,27 @@
             }
         }
 
+        public void VerifySeparator(List<Token> tokens)
+        {
+            var lastToken = tokens.Last();
+
+            if (!(lastToken is StatementSperatorToken && lastToken.Content == ";"))
+            {
+                throw new Exception($"Error: Se esperaba un ';' al final de la declaración de la cadena. " +
+                                    $"Línea: {lastToken.Line}, Columna: {lastToken.Column}");
+            }
+        }
+
+        public void PrintValues(List<Token> tokens)
+        {
+            List<string> values = new List<string>();
+
+            foreach (Token token in tokens)
+            {
+                values.Add(ColorParser.GetTokenColor(token));
+            }
+
+            ColorParser.WriteLine($"{string.Join(" ", values)}");
+        }
     }
 }

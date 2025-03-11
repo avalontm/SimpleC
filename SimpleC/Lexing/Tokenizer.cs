@@ -1,6 +1,7 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types;
 using SimpleC.Types.Tokens;
+using System.Diagnostics;
 using System.Text;
 
 namespace SimpleC.Lexing
@@ -27,66 +28,74 @@ namespace SimpleC.Lexing
         {
             var tokens = new List<Token>();
             var builder = new StringBuilder();
-
-            while (!eof())
+            try
             {
-                skip(CharType.WhiteSpace);
-                var _peekType = peekType();
-                int startColumn = currentColumn;
-
-                switch (_peekType)
+                while (!eof())
                 {
-                    case CharType.Alpha:
-                        readToken(builder, CharType.AlphaNumeric);
-                        string s = builder.ToString();
-                        tokens.Add(KeywordToken.IsKeyword(s) ? new KeywordToken(s, currentLine, startColumn) : new IdentifierToken(s, currentLine, startColumn));
-                        builder.Clear();
-                        break;
-                    case CharType.Numeric:
-                        bool hasDecimal = readNumber(builder);
-                        tokens.Add(hasDecimal ? new FloatLiteralToken(builder.ToString(), currentLine, startColumn) : new NumberLiteralToken(builder.ToString(), currentLine, startColumn));
-                        builder.Clear();
-                        break;
-                    case CharType.Operator:
-                        readToken(builder, CharType.Operator);
-                        tokens.Add(new OperatorToken(builder.ToString(), currentLine, startColumn));
-                        builder.Clear();
-                        break;
-                    case CharType.OpenBrace:
-                        tokens.Add(new OpenBraceToken(next().ToString(), currentLine, startColumn));
-                        break;
-                    case CharType.CloseBrace:
-                        tokens.Add(new CloseBraceToken(next().ToString(), currentLine, startColumn));
-                        break;
-                    case CharType.ArgSeperator:
-                        tokens.Add(new ArgSeperatorToken(next().ToString(), currentLine, startColumn));
-                        break;
-                    case CharType.StatementSeperator:
-                        tokens.Add(new StatementSperatorToken(next().ToString(), currentLine, startColumn));
-                        break;
-                    case CharType.SingleLineComment:
-                        skipSingleLineComment();
-                        break;
-                    case CharType.MultiLineComment:
-                        skipMultiLineComment();
-                        break;
-                    case CharType.StringDelimiter:
-                        tokens.Add(readStringLiteral(startColumn));
-                        break;
-                    case CharType.CharDelimiter:
-                        tokens.Add(readCharLiteral(startColumn));
-                        break;
-                    case CharType.Preprocessor:
-                        handlePreprocessor(tokens);
-                        break;
-
-                    case CharType.NewLine: // Aquí se maneja el salto de línea
-                        tokens.Add(new NewLineToken("\n", currentLine, startColumn));
-                        HandleNewLine(); // Asegura que la línea y columna se actualicen correctamente
-                        break;
-                    default:
-                        throw new Exception($"El tokenizer encontró un carácter no identificable: '{peek()}' en la línea {currentLine}, posición {currentColumn}");
+                    skip(CharType.WhiteSpace);
+                    var _peekType = peekType();
+                    int startColumn = currentColumn;
+                    Debug.WriteLine($"peekType: {_peekType} {peek()}");
+                    switch (_peekType)
+                    {
+                        case CharType.Alpha:
+                            readToken(builder, CharType.AlphaNumeric);
+                            string s = builder.ToString();
+                            tokens.Add(KeywordToken.IsKeyword(s) ? new KeywordToken(s, currentLine, startColumn) : new IdentifierToken(s, currentLine, startColumn));
+                            builder.Clear();
+                            break;
+                        case CharType.Numeric:
+                            bool hasDecimal = readNumber(builder);
+                            tokens.Add(hasDecimal ? new FloatLiteralToken(builder.ToString(), currentLine, startColumn) : new NumberLiteralToken(builder.ToString(), currentLine, startColumn));
+                            builder.Clear();
+                            break;
+                        case CharType.Operator:
+                            readToken(builder, CharType.Operator);
+                            tokens.Add(new OperatorToken(builder.ToString(), currentLine, startColumn));
+                            builder.Clear();
+                            break;
+                        case CharType.OpenBrace:
+                            tokens.Add(new OpenBraceToken(next().ToString(), currentLine, startColumn));
+                            break;
+                        case CharType.CloseBrace:
+                            tokens.Add(new CloseBraceToken(next().ToString(), currentLine, startColumn));
+                            break;
+                        case CharType.ArgSeperator:
+                            tokens.Add(new ArgSeperatorToken(next().ToString(), currentLine, startColumn));
+                            break;
+                        case CharType.StatementSeperator:
+                            tokens.Add(new StatementSperatorToken(next().ToString(), currentLine, startColumn));
+                            break;
+                        case CharType.SingleLineComment:
+                            skipSingleLineComment();
+                            break;
+                        case CharType.MultiLineComment:
+                            skipMultiLineComment();
+                            break;
+                        case CharType.StringDelimiter:
+                            tokens.Add(readStringLiteral(startColumn));
+                            break;
+                        case CharType.CharDelimiter:
+                            tokens.Add(readCharLiteral(startColumn));
+                            break;
+                        case CharType.Preprocessor:
+                            handlePreprocessor(tokens);
+                            break;
+                        case CharType.NewLine: // Aquí se maneja el salto de línea
+                            tokens.Add(new NewLineToken("\n", currentLine, startColumn));
+                            HandleNewLine(); // Asegura que la línea y columna se actualicen correctamente
+                            break;
+                        default:
+                            throw new Exception($"El tokenizer encontró un carácter no identificable: '{peek()}' en la línea {currentLine}, posición {currentColumn}");
+                    }
                 }
+            }catch(Exception ex)
+            {
+#if DEBUG
+                ColorParser.WriteLine($"[color=red]{ex}[/color]");
+#else
+                ColorParser.WriteLine($"[color=red]{ex.Message}[/color]");
+# endif
             }
 
             return tokens.ToArray();
@@ -115,7 +124,7 @@ namespace SimpleC.Lexing
                     next(); // Saltar '<'
 
                     builder.Clear();
-                    while (!eof() && peek() != '>')
+                    while (!eof() && (peek() != '>' && peek() != '\n') )
                     {
                         builder.Append(next());
                     }
@@ -137,7 +146,7 @@ namespace SimpleC.Lexing
                     next(); // Saltar '"'
 
                     builder.Clear();
-                    while (!eof() && peek() != '"')
+                    while (!eof() && (peek() != '"' && peek() != '\n'))
                     {
                         builder.Append(next());
                     }
@@ -330,6 +339,8 @@ namespace SimpleC.Lexing
                     return CharType.StatementSeperator;
                 case ',':
                     return CharType.ArgSeperator;
+                case '.':
+                    return CharType.SpecialCharacter;
                 case '"':
                     return CharType.StringDelimiter;
                 case '\'':

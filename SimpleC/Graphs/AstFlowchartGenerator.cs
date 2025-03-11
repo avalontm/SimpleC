@@ -6,10 +6,10 @@ public class AstFlowchartGenerator
 {
     private SKCanvas canvas;
     private float nodeWidth = 150;
-    private float nodeHeight = 60;
+    private float nodeHeight = 80;
     // Aumentar el espaciado vertical y horizontal
-    private float verticalSpacing = 140;
-    private float horizontalSpacing = 260;
+    private float verticalSpacing = 100;
+    private float horizontalSpacing = 200;
     private SKFont textFont;
     private SKPaint textPaint;
     private SKFont subtextFont;
@@ -65,28 +65,254 @@ public class AstFlowchartGenerator
         };
     }
 
-    // Método para generar diagrama a partir de un nodo AST
+    // Check if two nodes are colliding
+    private bool AreNodesColliding(AstNode node1, AstNode node2)
+    {
+        if (!nodePositions.TryGetValue(node1, out SKPoint pos1) ||
+            !nodePositions.TryGetValue(node2, out SKPoint pos2))
+            return false;
+
+        float node1Width = GetNodeWidth(node1);
+        float node1Height = GetNodeHeight(node1);
+        float node2Width = GetNodeWidth(node2);
+        float node2Height = GetNodeHeight(node2);
+
+        // Add padding to ensure enough separation between nodes
+        float padding = 20;
+
+        // Simplified collision detection based on node type
+        string type1 = GetNodeType(node1);
+        string type2 = GetNodeType(node2);
+
+        // For circles, use radius-based collision detection
+        if (type1 == "Circle" && type2 == "Circle")
+        {
+            float radius1 = node1Width / 2;
+            float radius2 = node2Width / 2;
+            float distance = MathF.Sqrt(MathF.Pow(pos2.X - pos1.X, 2) + MathF.Pow(pos2.Y - pos1.Y, 2));
+            return distance < (radius1 + radius2 + padding);
+        }
+
+        // For rectangles, use AABB collision detection
+        if (type1 == "Rectangle" && type2 == "Rectangle")
+        {
+            return !(pos1.X + node1Width / 2 + padding < pos2.X - node2Width / 2 ||
+                     pos1.X - node1Width / 2 - padding > pos2.X + node2Width / 2 ||
+                     pos1.Y + node1Height / 2 + padding < pos2.Y - node2Height / 2 ||
+                     pos1.Y - node1Height / 2 - padding > pos2.Y + node2Height / 2);
+        }
+
+        // For diamonds, use slightly larger bounding box
+        if (type1 == "Diamond" || type2 == "Diamond")
+        {
+            float diamondPadding = padding * 1.5f; // Diamonds need more space
+            float width1 = type1 == "Diamond" ? node1Width * 1.2f : node1Width;
+            float height1 = type1 == "Diamond" ? node1Height * 1.2f : node1Height;
+            float width2 = type2 == "Diamond" ? node2Width * 1.2f : node2Width;
+            float height2 = type2 == "Diamond" ? node2Height * 1.2f : node2Height;
+
+            return !(pos1.X + width1 / 2 + diamondPadding < pos2.X - width2 / 2 ||
+                     pos1.X - width1 / 2 - diamondPadding > pos2.X + width2 / 2 ||
+                     pos1.Y + height1 / 2 + diamondPadding < pos2.Y - height2 / 2 ||
+                     pos1.Y - height1 / 2 - diamondPadding > pos2.Y + height2 / 2);
+        }
+
+        // Mixed shape collision (simplified to rectangular bounds with padding)
+        return !(pos1.X + node1Width / 2 + padding < pos2.X - node2Width / 2 ||
+                 pos1.X - node1Width / 2 - padding > pos2.X + node2Width / 2 ||
+                 pos1.Y + node1Height / 2 + padding < pos2.Y - node2Height / 2 ||
+                 pos1.Y - node1Height / 2 - padding > pos2.Y + node2Height / 2);
+    }
+
+    // Reposition colliding nodes
+    private void ResolveCollisions(List<AstNode> nodes)
+    {
+        bool collisionsExist = true;
+        int maxIterations = 50; // Prevent infinite loops
+        int iteration = 0;
+
+        while (collisionsExist && iteration < maxIterations)
+        {
+            collisionsExist = false;
+            iteration++;
+
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                for (int j = i + 1; j < nodes.Count; j++)
+                {
+                    if (AreNodesColliding(nodes[i], nodes[j]))
+                    {
+                        collisionsExist = true;
+
+                        // Get current positions
+                        SKPoint pos1 = nodePositions[nodes[i]];
+                        SKPoint pos2 = nodePositions[nodes[j]];
+
+                        // Calculate vector between nodes
+                        float dx = pos2.X - pos1.X;
+                        float dy = pos2.Y - pos1.Y;
+
+                        // If nodes are directly on top of each other, add a small offset
+                        if (Math.Abs(dx) < 0.001f && Math.Abs(dy) < 0.001f)
+                        {
+                            dx = 1.0f;
+                            dy = 1.0f;
+                        }
+
+                        // Normalize the vector
+                        float distance = MathF.Sqrt(dx * dx + dy * dy);
+                        dx /= distance;
+                        dy /= distance;
+
+                        // Calculate minimum distance needed between nodes
+                        float minDistance = (GetNodeWidth(nodes[i]) + GetNodeWidth(nodes[j])) / 2 + 40; // Extra padding
+
+                        // Move both nodes apart (weighted by their relative sizes)
+                        float weight1 = GetNodeWidth(nodes[i]) / (GetNodeWidth(nodes[i]) + GetNodeWidth(nodes[j]));
+                        float weight2 = 1 - weight1;
+
+                        // Calculate the move distance
+                        float moveDistance = minDistance - distance;
+                        if (moveDistance <= 0) continue;
+
+                        // Update positions
+                        nodePositions[nodes[i]] = new SKPoint(
+                            pos1.X - dx * moveDistance * weight2,
+                            pos1.Y - dy * moveDistance * weight2
+                        );
+
+                        nodePositions[nodes[j]] = new SKPoint(
+                            pos2.X + dx * moveDistance * weight1,
+                            pos2.Y + dy * moveDistance * weight1
+                        );
+
+                        // Update bounds after repositioning
+                        UpdateBounds(nodes[i], nodePositions[nodes[i]].X, nodePositions[nodes[i]].Y);
+                        UpdateBounds(nodes[j], nodePositions[nodes[j]].X, nodePositions[nodes[j]].Y);
+                    }
+                }
+            }
+        }
+    }
+
+    // Modified CalculateNodePositions method to arrange primary nodes horizontally
+    private void CalculateNodePositions(StatementSequenceNode rootNode)
+    {
+        // Initialize the values
+        minX = float.MaxValue;
+        minY = float.MaxValue;
+        maxX = float.MinValue;
+        maxY = float.MinValue;
+
+        // Position the root node
+        float rootX = horizontalSpacing;
+        float rootY = verticalSpacing;
+        nodePositions[rootNode] = new SKPoint(rootX, rootY);
+
+        // Update bounds with the root node
+        UpdateBounds(rootNode, rootX, rootY);
+
+        // Create a list to store all nodes for collision detection
+        List<AstNode> allNodes = new List<AstNode> { rootNode };
+
+        // If it has subnodes, distribute them horizontally
+        if (rootNode.SubNodes.Any())
+        {
+            // Calculate the total width needed
+            float totalNodesWidth = CalculateTotalNodesWidth(rootNode.SubNodes);
+
+            // Center subnodes horizontally relative to parent
+            float startX = rootX;
+            float currentX = startX;
+            float currentY = rootY + GetNodeHeight(rootNode) + verticalSpacing;
+
+            foreach (var subNode in rootNode.SubNodes)
+            {
+                float nodeWidth = GetNodeWidth(subNode);
+
+                // Place subnodes in a horizontal line
+                nodePositions[subNode] = new SKPoint(currentX + nodeWidth / 2, currentY);
+
+                // Update bounds with this subnode
+                UpdateBounds(subNode, currentX + nodeWidth / 2, currentY);
+
+                // Move to the next horizontal position
+                currentX += nodeWidth + horizontalSpacing;
+
+                // Add to the list of all nodes
+                allNodes.Add(subNode);
+
+                // Position sub-subnodes vertically if there are any
+                if (subNode is StatementSequenceNode statementSeq && statementSeq.SubNodes.Any())
+                {
+                    PositionSubnodesRecursively(statementSeq, nodePositions[subNode], 1, allNodes);
+                }
+            }
+        }
+
+        // Detect and resolve collisions between all nodes
+        ResolveCollisions(allNodes);
+    }
+
+
+    // Updated recursive positioning method for vertical subnodes arrangement
+    private void PositionSubnodesRecursively(StatementSequenceNode node, SKPoint parentPosition, int depth, List<AstNode> allNodes)
+    {
+        if (!node.SubNodes.Any())
+            return;
+
+        float parentX = parentPosition.X;
+        float parentY = parentPosition.Y;
+        float parentHeight = GetNodeHeight(node);
+
+        // Start vertical positioning
+        float currentY = parentY + parentHeight + verticalSpacing;
+
+        // Place nodes vertically aligned with parent
+        foreach (var subNode in node.SubNodes)
+        {
+            // Position subnodes vertically aligned with parent
+            nodePositions[subNode] = new SKPoint(parentX, currentY);
+
+            // Update bounds with this subnode
+            UpdateBounds(subNode, parentX, currentY);
+
+            // Move to the next vertical position
+            currentY += GetNodeHeight(subNode) + verticalSpacing;
+
+            // Add to the list of all nodes for collision detection
+            allNodes.Add(subNode);
+
+            // If this is also a sequence, position its subnodes
+            if (subNode is StatementSequenceNode statementSeq)
+            {
+                PositionSubnodesRecursively(statementSeq, nodePositions[subNode], depth + 1, allNodes);
+            }
+        }
+    }
+
+    // Modified GenerateFromAst method to use the collision detection
     public SKBitmap GenerateFromAst(StatementSequenceNode rootNode)
     {
-        // Calcular dimensiones de los nodos
+        // Calculate dimensions of the nodes
         CalculateNodeDimensions(rootNode);
 
-        // Calcular posiciones de nodos
+        // Calculate positions of nodes
         CalculateNodePositions(rootNode);
 
-        // Calcular tamaño del diagrama
+        // Calculate the size of the diagram
         SKSizeI imageSize = CalculateImageSize();
 
-        // Crear el bitmap con el tamaño calculado
+        // Create the bitmap with the calculated size
         SKBitmap bitmap = new SKBitmap(imageSize.Width, imageSize.Height);
 
-        // Crear el canvas para dibujar
+        // Create the canvas for drawing
         using (canvas = new SKCanvas(bitmap))
         {
-            // Limpiar el lienzo
+            // Clear the canvas
             canvas.Clear(SKColors.White);
 
-            // Dibujar el diagrama de flujo con un desplazamiento para centrar
+            // Draw the flowchart with an offset to center it
             float offsetX = -minX + 80;
             float offsetY = -minY + 80;
 
@@ -134,62 +360,6 @@ public class AstFlowchartGenerator
 
         // Guardar las dimensiones calculadas
         nodeSizes[node] = new NodeSize { Width = width, Height = height };
-    }
-
-    private void CalculateNodePositions(StatementSequenceNode rootNode)
-    {
-        // Inicializar los valores extremos
-        minX = float.MaxValue;
-        minY = float.MaxValue;
-        maxX = float.MinValue;
-        maxY = float.MinValue;
-
-        // Posicionar el nodo raíz
-        float rootX = horizontalSpacing;
-        float rootY = verticalSpacing;
-        nodePositions[rootNode] = new SKPoint(rootX, rootY);
-
-        // Actualizar límites con el nodo raíz
-        UpdateBounds(rootNode, rootX, rootY);
-
-        // Posicionar los subnodos
-        float currentY = rootY + GetNodeHeight(rootNode) + verticalSpacing;
-        float branchStartX = rootX;
-
-        // Si tiene subnodos, distribuirlos horizontalmente
-        if (rootNode.SubNodes.Any())
-        {
-            // Calcular ancho total basado en los subnodos
-            float totalNodesWidth = CalculateTotalNodesWidth(rootNode.SubNodes);
-
-            // Calcular posición inicial para centrar los subnodos
-            float startX = Math.Max(rootX - totalNodesWidth / 2, horizontalSpacing);
-
-            // Posicionar cada subnodo
-            float currentX = startX;
-            foreach (var subNode in rootNode.SubNodes)
-            {
-                float nodeWidth = GetNodeWidth(subNode);
-
-                // Centrar basado en el ancho del nodo
-                nodePositions[subNode] = new SKPoint(currentX + nodeWidth / 2, currentY);
-
-                // Actualizar límites con este subnodo
-                UpdateBounds(subNode, currentX + nodeWidth / 2, currentY);
-
-                // Mover a la siguiente posición con margen adicional
-                currentX += nodeWidth + horizontalSpacing;
-            }
-
-            // Si es un StatementSequenceNode, posicionar sus subnodos recursivamente
-            foreach (var subNode in rootNode.SubNodes)
-            {
-                if (subNode is StatementSequenceNode statementSeq)
-                {
-                    PositionSubnodesRecursively(statementSeq, nodePositions[subNode], 1);
-                }
-            }
-        }
     }
 
     // Método para calcular el ancho total que ocuparán los nodos
@@ -745,7 +915,7 @@ public class AstFlowchartGenerator
             }
             return true;
         }
-        catch
+        catch(Exception ex)
         {
             return false;
         }

@@ -18,6 +18,7 @@ namespace SimpleC.Types.AstNodes
         public override void Generate()
         {
             base.Generate();
+            ColorParser.WriteLine($"[color=blue]{Value}[/color]");
         }
     }
 }
