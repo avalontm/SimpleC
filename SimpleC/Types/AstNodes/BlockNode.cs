@@ -1,4 +1,6 @@
 ﻿using SimpleC.Types.Tokens;
+using SimpleC.Utils;
+using SimpleC.VM;
 using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
@@ -75,6 +77,21 @@ namespace SimpleC.Types.AstNodes
         public bool HasReturnStatement()
         {
             return this.SubNodes.Any(node => node is ReturnNode);
+        }
+
+
+        public override List<byte> ByteCode()
+        {
+            List<byte> byteCode = new List<byte>();
+
+
+            foreach (var node in this.SubNodes)
+            {
+                byteCode.AddRange(node.ByteCode());
+            }
+
+
+            return byteCode;
         }
     }
 

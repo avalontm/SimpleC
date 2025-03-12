@@ -1,5 +1,7 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
+using SimpleC.Utils;
+using SimpleC.VM;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -113,7 +115,85 @@ namespace SimpleC.Types.AstNodes
                     blockNode.Generate();
                 }
             }
-
         }
+
+        public override List<byte> ByteCode()
+        {
+            List<byte> byteCode = new List<byte>();
+
+            // Mark the beginning of a function with OpCode.Mark
+            byteCode.Add((byte)OpCode.Mark);
+
+            // Add the function name length and bytes
+            byte[] methodNameBytes = System.Text.Encoding.UTF8.GetBytes(Value);
+            byteCode.Add((byte)methodNameBytes.Length); // Name length
+            byteCode.AddRange(methodNameBytes); // Function name
+
+            byteCode.Add((byte)OpCode.Enter);
+
+            // Add return type info
+            byteCode.Add((byte)GetConstantTypeFromVariableType(Type));
+
+            // Count and process parameters as before
+            int paramCount = 0;
+            for (int i = 0; i < Parameters.Count; i++)
+            {
+                if (Parameters[i] is KeywordToken keywordToken && keywordToken.IsTypeKeyword)
+                    paramCount++;
+            }
+            byteCode.Add((byte)paramCount);
+
+            // Process parameter definitions
+            for (int i = 0; i < Parameters.Count; i++)
+            {
+                if (Parameters[i] is KeywordToken keywordToken && keywordToken.IsTypeKeyword)
+                {
+                    // Parameter type
+                    byteCode.Add((byte)GetConstantTypeFromVariableType(keywordToken.ToVariableType()));
+                    // Parameter name (next token)
+                    if (i + 1 < Parameters.Count && !(Parameters[i + 1] is KeywordToken))
+                    {
+                        string paramName = Parameters[i + 1].Content;
+                        byte[] paramNameBytes = System.Text.Encoding.UTF8.GetBytes(paramName);
+                        byteCode.Add((byte)paramNameBytes.Length);
+                        byteCode.AddRange(paramNameBytes);
+                        i++; // Skip the parameter name token
+                    }
+                    // Skip comma if present
+                    if (i + 1 < Parameters.Count && Parameters[i + 1].Content == ",")
+                        i++;
+                }
+            }
+
+            // Generate method body code
+            foreach (var node in this.SubNodes)
+            {
+                if (node is BlockNode block)
+                {
+                    byteCode.AddRange(block.ByteCode());
+                }
+            }
+
+            byteCode.Add((byte)OpCode.Return);
+
+            return byteCode;
+        }
+
+
+        // Helper method to convert VariableType to ConstantType
+        private ConstantType GetConstantTypeFromVariableType(VariableType type)
+        {
+            return type switch
+            {
+                VariableType.Int => ConstantType.Integer,
+                VariableType.Float => ConstantType.Float,
+                VariableType.String => ConstantType.String,
+                VariableType.Char => ConstantType.Char,
+                VariableType.Bool => ConstantType.Bool,
+                VariableType.Void => ConstantType.Void,
+                _ => throw new Exception($"Unsupported variable type: {type}")
+            };
+        }
+
     }
 }

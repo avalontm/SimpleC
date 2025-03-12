@@ -1,5 +1,8 @@
 ﻿using SimpleC.Lexing;
 using SimpleC.Parsing;
+using SimpleC.Utils;
+using SimpleC.VM;
+using System.Diagnostics;
 using System.Text;
 
 namespace SimpleC
@@ -14,7 +17,6 @@ namespace SimpleC
         static bool useDiagram = false;
         static bool logEnabled = false;
         static string diagramPath = "diagrama_ast.png";
-        static string logFilePath = "compilation_log.txt";
         static int frameWidth;
 
         static void Main(string[] args)
@@ -27,86 +29,87 @@ namespace SimpleC
             }
             catch
             {
-                frameWidth = 65; 
+                frameWidth = 65;
             }
-
-            PrintHeader();
 
             if (args.Length == 0)
             {
+                PrintHeader();
                 PrintUsage();
                 return;
             }
 
-            switch (args[0].ToLower())
+            string firstArg = args[0].ToLower();
+
+            if (firstArg.EndsWith(".c")) // Si el primer argumento es un archivo .c, lo interpretamos como compilación
             {
-                case "compile":
-                    if (args.Length < 2)
+                string filePath = args[0];
+
+                for (int i = 1; i < args.Length; i++) // Empezamos en 1 porque el índice 0 es el archivo
+                {
+                    string arg = args[i].ToLower();
+
+                    switch (arg)
                     {
-                        ColorParser.WriteLine("[color=red]Error: Debe especificar un archivo para compilar.[/color]");
-                        return;
+                        case "--diagram":
+                            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                            {
+                                diagramPath = args[i + 1];
+                                i++;
+                            }
+                            else
+                            {
+                                diagramPath = "diagrama_ast.png";
+                            }
+                            useDiagram = true;
+                            break;
+
+                        case "--log":
+                            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                            {
+                                i++;
+                            }
+                            else
+                            {
+
+                            }
+                            logEnabled = true;
+                            break;
+
+                        case "--translate":
+                            ParserGlobal.IsTranslate = true;
+                            break;
+
+                        default:
+                            ColorParser.WriteLine($"[color=red]Error: Opción desconocida '{args[i]}'[/color]");
+                            return;
                     }
+                }
 
-                    // Recorremos los argumentos empezando desde el índice 2, ya que args[1] es el archivo
-                    for (int i = 2; i < args.Length; i++)
-                    {
-                        string arg = args[i].ToLower();
+                // Compilamos el archivo especificado
+                Compile(filePath);
+            }
+            else
+            {
+                PrintHeader();
 
-                        switch (arg)
-                        {
-                            case "--diagram":
-                                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
-                                {
-                                    diagramPath = args[i + 1]; // Asignar el valor al path del diagrama
-                                    i++; // Avanzar el índice para saltar al siguiente parámetro
-                                }
-                                else
-                                {
-                                    diagramPath = "diagrama_ast.png"; // Valor por defecto
-                                }
-                                useDiagram = true;
-                                break;
+                switch (firstArg)
+                {
+                    case "version":
+                        PrintVersionInfo();
+                        break;
 
-                            case "--log":
-                                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
-                                {
-                                    logFilePath = args[i + 1]; // Asignar el valor al archivo de log
-                                    i++; // Avanzar el índice para saltar al siguiente parámetro
-                                }
-                                else
-                                {
-                                    logFilePath = "compilation_log.txt"; // Valor por defecto
-                                }
-                                logEnabled = true;
-                                break;
+                    case "help":
+                        PrintUsage();
+                        break;
 
-                            case "--translate":
-                                ParserGlobal.IsTranslate = true;
-                                break;
-
-                            default:
-                                ColorParser.WriteLine($"[color=red]Error: Opción desconocida '{args[i]}'[/color]");
-                                return;
-                        }
-                    }
-
-                    // Compilamos el archivo especificado
-                    Compile(args[1]);
-                    break;
-
-                case "version":
-                    PrintVersionInfo();
-                    break;
-
-                case "help":
-                    PrintUsage();
-                    break;
-
-                default:
-                    ColorParser.WriteLine("[color=red]Comando no reconocido. Use 'simplec help' para ver las opciones.[/color]");
-                    break;
+                    default:
+                        ColorParser.WriteLine("[color=red]Comando no reconocido. Use 'simplec help' para ver las opciones.[/color]");
+                        break;
+                }
             }
         }
+
 
         static string CreateHorizontalLine(char leftChar, char middleChar, char rightChar)
         {
@@ -217,7 +220,7 @@ namespace SimpleC
             ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]INSTRUCCIONES[/color]")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╠', '═', '╣')}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=white]Uso:[/color]")}[/color]");
-            ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=yellow]simplec compile <archivo> [--diagram <path>] [--log <path>][/color]")}[/color]");
+            ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=yellow]simplec <archivo> [--diagram <path>] [--log <path>][/color]")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=white]    Compila el archivo especificado[/color]")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateContentLine("")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=yellow]simplec version[/color]")}[/color]");
@@ -237,33 +240,42 @@ namespace SimpleC
                 return;
             }
 
-            // Determinar la longitud real sin tags de color
-            string compilingText = $"Compilando: '{filePath}'";
-            string dateText = $"Fecha: {DateTime.Now}";
-
-            // Usar formato consistente para el mensaje de compilación
-            ColorParser.WriteLine($"[color=yellow]{CreateHorizontalLine('┌', '─', '┐').Replace("═", "─")}[/color]");
-            ColorParser.WriteLine($"[color=yellow]│[/color] [color=white]Compilando:[/color] [color=green]'{filePath}'[/color]{new string(' ', frameWidth - compilingText.Length - 3)}[color=yellow]│[/color]");
-            ColorParser.WriteLine($"[color=yellow]│[/color] [color=white]Fecha:[/color] [color=green]{DateTime.Now}[/color]{new string(' ', frameWidth - dateText.Length - 3)}[color=yellow]│[/color]");
-            ColorParser.WriteLine($"[color=yellow]{CreateHorizontalLine('└', '─', '┘').Replace("═", "─")}[/color]");
-
-            // If log is enabled, log the start of compilation
             if (logEnabled)
             {
-                File.AppendAllText(logFilePath, $"Inicio de la compilación: {DateTime.Now}\n");
-                ColorParser.WriteLine($"[color=blue]→ Registro habilitado en: {logFilePath}[/color]");
+                // Determinar la longitud real sin tags de color
+                string compilingText = $"Compilando: '{filePath}'";
+                string dateText = $"Fecha: {DateTime.Now}";
+
+                // Usar formato consistente para el mensaje de compilación
+                ColorParser.WriteLine($"[color=yellow]{CreateHorizontalLine('┌', '─', '┐').Replace("═", "─")}[/color]");
+                ColorParser.WriteLine($"[color=yellow]│[/color] [color=white]Compilando:[/color] [color=green]'{filePath}'[/color]{new string(' ', frameWidth - compilingText.Length - 3)}[color=yellow]│[/color]");
+                ColorParser.WriteLine($"[color=yellow]│[/color] [color=white]Fecha:[/color] [color=green]{DateTime.Now}[/color]{new string(' ', frameWidth - dateText.Length - 3)}[color=yellow]│[/color]");
+                ColorParser.WriteLine($"[color=yellow]{CreateHorizontalLine('└', '─', '┘').Replace("═", "─")}[/color]");
+
             }
 
             string code = File.ReadAllText(filePath, Encoding.UTF8);
 
             // Lexing
-            ColorParser.WriteLine("\n[color=yellow]▶ FASE 1: ANÁLISIS LÉXICO[/color]");
+            if (logEnabled)
+            {
+                ColorParser.WriteLine("\n[color=yellow]▶ FASE 1: ANÁLISIS LÉXICO[/color]");
+            }
+
             var lexer = new Tokenizer(code);
             var tokens = lexer.Tokenize();
-            ColorParser.WriteLine("[color=green]✓ Análisis léxico completado[/color]");
+
+            if (logEnabled)
+            {
+                ColorParser.WriteLine("[color=green]✓ Análisis léxico completado[/color]");
+            }
 
             // Parsing
-            ColorParser.WriteLine("\n[color=yellow]▶ FASE 2: ANÁLISIS SINTÁCTICO[/color]");
+            if (logEnabled)
+            {
+                ColorParser.WriteLine("\n[color=yellow]▶ FASE 2: ANÁLISIS SINTÁCTICO[/color]");
+            }
+
             var parser = new Parser(tokens);
             var ast = parser.ParseToAst();
 
@@ -272,29 +284,50 @@ namespace SimpleC
                 return;
             }
 
-            ColorParser.WriteLine("[color=green]✓ Análisis sintáctico completado[/color]");
-
-            // Codigo generado
-            ColorParser.WriteLine($"\n[color=cyan]{CreateHorizontalLine('╔', '═', '╗')}[/color]");
-            ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]C O D I G O [/color]")}[/color]");
-            ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╚', '═', '╝')}[/color]");
-            Console.WriteLine();
-
-            foreach (var node in ast.SubNodes)
-            {
-                node.Generate();
-            }
-
-            Console.WriteLine();
-            ColorParser.WriteLine("[color=green]✓ Generación de código completada[/color]");
-
-            ColorParser.WriteLine($"\n[color=cyan]{CreateHorizontalLine('╔', '═', '╗')}[/color]");
-            ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]COMPILACIÓN EXITOSA[/color]")}[/color]");
-            ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╚', '═', '╝')}[/color]");
-
             if (logEnabled)
             {
-                File.AppendAllText(logFilePath, $"Compilación exitosa: {DateTime.Now}\n");
+                ColorParser.WriteLine("[color=green]✓ Análisis sintáctico completado[/color]");
+
+                // Codigo generado
+                ColorParser.WriteLine($"\n[color=cyan]{CreateHorizontalLine('╔', '═', '╗')}[/color]");
+                ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]C O D I G O [/color]")}[/color]");
+                ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╚', '═', '╝')}[/color]");
+                Console.WriteLine();
+
+                foreach (var node in ast.SubNodes)
+                {
+                    node.Generate();
+                }
+
+                Console.WriteLine();
+                ColorParser.WriteLine("[color=green]✓ Generación de código completada[/color]");
+
+                ColorParser.WriteLine($"\n[color=cyan]{CreateHorizontalLine('╔', '═', '╗')}[/color]");
+                ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]COMPILACIÓN EXITOSA[/color]")}[/color]");
+                ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╚', '═', '╝')}[/color]");
+
+                ColorParser.WriteLine($"\n[color=cyan]{CreateHorizontalLine('╔', '═', '╗')}[/color]");
+                ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]E J E C U T A N D O[/color]")}[/color]");
+                ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╚', '═', '╝')}[/color]");
+            }
+
+            List<byte> OpCodes = new List<byte>();
+
+            try
+            {
+                foreach (var node in ast.SubNodes)
+                {
+                    OpCodes.AddRange(node.ByteCode());
+                }
+
+                OpCodes.Add((byte)OpCode.Halt);
+
+                VirtualMachine vm = new VirtualMachine(OpCodes);
+                vm.Run();
+            }
+            catch (Exception ex)
+            {
+                ColorParser.WriteLine($"[color=red]{ex}[/color]");
             }
 
             // Generamos el diagrama si esta activado
@@ -313,7 +346,6 @@ namespace SimpleC
                 }
             }
 
-            ColorParser.WriteLine("\n[color=white]Gracias por usar SimpleC Compiler v" + VERSION + "[/color]");
         }
     }
 }

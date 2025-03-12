@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace SimpleC
+namespace SimpleC.Utils
 {
     public static class ColorParser
     {
@@ -144,7 +144,7 @@ namespace SimpleC
                 "red" => ConsoleColor.Red,
                 "white" => ConsoleColor.White,
                 "yellow" => ConsoleColor.Yellow,
-                "orange" => ConsoleColor.Red, 
+                "orange" => ConsoleColor.Red,
                 _ => ConsoleColor.White
             };
         }
@@ -161,7 +161,7 @@ namespace SimpleC
 
             // Escape any special characters in the token content
 
-            if(ParserGlobal.IsTranslate)
+            if (ParserGlobal.IsTranslate)
             {
                 if (token is KeywordToken)
                 {

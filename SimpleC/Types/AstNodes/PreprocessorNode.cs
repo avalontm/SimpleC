@@ -1,5 +1,6 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
+using SimpleC.Utils;
 using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
@@ -14,7 +15,6 @@ namespace SimpleC.Types.AstNodes
         {
             NameAst = "Preprocesador: Incluir";
 
-            Debug.WriteLine("");
             // Primer token debe ser un '#'
             if (tokens[0].Content != "#")
                 throw new ArgumentException($"Se esperaba un '#', pero se encontró '{tokens[0].Content}'", nameof(tokens));

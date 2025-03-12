@@ -1,6 +1,7 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types;
 using SimpleC.Types.Tokens;
+using SimpleC.Utils;
 using System.Diagnostics;
 using System.Text;
 
@@ -35,7 +36,7 @@ namespace SimpleC.Lexing
                     skip(CharType.WhiteSpace);
                     var _peekType = peekType();
                     int startColumn = currentColumn;
-                    Debug.WriteLine($"peekType: {_peekType} {peek()}");
+
                     switch (_peekType)
                     {
                         case CharType.Alpha:

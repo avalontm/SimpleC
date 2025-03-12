@@ -1,4 +1,6 @@
-﻿namespace SimpleC.Types.AstNodes
+﻿using SimpleC.Utils;
+
+namespace SimpleC.Types.AstNodes
 {
     internal class FloatLiteralNode : StatementSequenceNode
     {

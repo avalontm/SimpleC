@@ -1,6 +1,7 @@
 ﻿using SimpleC.Types;
 using SimpleC.Types.AstNodes;
 using SimpleC.Types.Tokens;
+using SimpleC.Utils;
 using System.Diagnostics;
 using System.Text;
 
@@ -200,6 +201,14 @@ namespace SimpleC.Parsing
                     return;
                 }
 
+                if(IsCustom(identifierToken.Content))
+                {
+                    // apra las funciones integradas (personalizadeas)
+                    var methodCallNode = new MethodCallNode(DetermineReturnType(identifierToken.Content), identifierToken.Content, GetTokens());
+                    scopes.Peek().AddStatement(methodCallNode);
+                    return;
+                }
+
                 // Manejar llamadas a métodos no declarados
                 if (peek() is OperatorToken && peek().Content == "(")
                 {
@@ -214,6 +223,15 @@ namespace SimpleC.Parsing
             scopes.Peek().AddStatement(idNode);
         }
 
+        private bool IsCustom(string methodName)
+        {
+            switch (methodName)
+            {
+                case "printf": return true;
+                case "scanf": return true;
+                default: return false;
+            }
+        }
         private List<Token> GetProcessorTokens()
         {
             List<Token> tokens = new List<Token>();
@@ -223,7 +241,6 @@ namespace SimpleC.Parsing
             {
                 var token = next();
                 tokens.Add(token);
-                Debug.WriteLine(token.Content);
             }
 
             // Si el siguiente token es un delimitador de cierre, lo agregamos a la lista de tokens
@@ -465,6 +482,7 @@ namespace SimpleC.Parsing
 
         private void ProcessMethodCall(MethodNode methodNode, Token identifierToken)
         {
+            Debug.WriteLine($"ProcessMethodCall: {methodNode}");
             List<Token> arguments = new List<Token>();
 
             if (peek() is OpenBraceToken)
@@ -491,6 +509,7 @@ namespace SimpleC.Parsing
 
         private void ProcessUndeclaredMethodCall(Token identifierToken)
         {
+            Debug.WriteLine($"ProcessUndeclaredMethodCall: {identifierToken.Content}");
             List<Token> arguments = new List<Token>();
 
             if (peek().Content == "(")
@@ -527,6 +546,7 @@ namespace SimpleC.Parsing
 
         private void ProcessVariableReference(VariableNode variableNode, Token identifierToken)
         {
+            Debug.WriteLine($"ProcessVariableReference: {variableNode}");
             // Verificar si es una llamada a método (ejemplo: variable())
             if (peek() is OperatorToken && peek().Content == "(")
             {

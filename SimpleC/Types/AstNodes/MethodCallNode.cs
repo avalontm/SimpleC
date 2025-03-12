@@ -1,6 +1,9 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types.Tokens;
+using SimpleC.Utils;
+using SimpleC.VM;
 using System.Diagnostics;
+using System.Text;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -30,13 +33,13 @@ namespace SimpleC.Types.AstNodes
         // Verificar que los argumentos estén correctamente delimitados por paréntesis
         private void CheckArgumentsSyntax()
         {
-            
+
             if (Arguments.Count == 0 || Arguments.First().Content != "(" || Arguments.Last().Content != ")")
             {
                 throw new Exception($"{Indentation}Error de sintaxis en la llamada al método '{Value}': " +
                                     $"Los argumentos deben estar entre paréntesis. (Línea: {Arguments.First().Line}, Columna: {Arguments.First().Column})");
             }
-        
+
             // Verificar que los paréntesis estén balanceados y que no haya contenido antes del primer paréntesis o después del último
             int openParens = 0;
             foreach (var token in Arguments)
@@ -80,7 +83,7 @@ namespace SimpleC.Types.AstNodes
             if (lastToken != null && lastToken is StatementSperatorToken statement && statement.Content == ";")
             {
                 separator = lastToken;
-                Arguments.Remove(lastToken); 
+                Arguments.Remove(lastToken);
             }
             else if (lastToken != null)
             {
@@ -118,5 +121,98 @@ namespace SimpleC.Types.AstNodes
             }
             ColorParser.WriteLine($"{Indentation}[color=yellow]{Value}[/color] {string.Join(" ", arguments)} {separator.Content}");
         }
+
+        public override List<byte> ByteCode()
+        {
+            List<byte> opCodes = new List<byte>();
+
+            // Generar bytecode para cada argumento primero (la VM basada en pila necesita los argumentos en la pila antes de la llamada)
+            List<Token> arguments = new List<Token>();
+            foreach (var arg in Arguments)
+            {
+                // Omitir paréntesis
+                if (arg is OpenBraceToken || arg is CloseBraceToken)
+                    continue;
+
+                arguments.Add(arg);
+            }
+
+            // Empujar cada argumento a la pila
+            foreach (var arg in arguments)
+            {
+                if (arg is IdentifierToken identifierToken)
+                {
+                    // Referencia de variable
+                    opCodes.Add((byte)OpCode.Load);
+                    byte[] varNameBytes = Encoding.UTF8.GetBytes(identifierToken.Content);
+                    opCodes.Add((byte)varNameBytes.Length);
+                    opCodes.AddRange(varNameBytes);
+                }
+                else if (arg is NumberLiteralToken numberToken)
+                {
+                    // Constante entera
+                    opCodes.Add((byte)OpCode.LoadC);
+                    opCodes.Add((byte)ConstantType.Integer); // Indicador de tipo de constante faltante
+                    opCodes.AddRange(BitConverter.GetBytes((int)numberToken.Numero));
+                }
+                else if (arg is FloatLiteralToken floatToken)
+                {
+                    // Constante flotante
+                    opCodes.Add((byte)OpCode.LoadC);
+                    opCodes.Add((byte)ConstantType.Float); // Indicador de tipo de constante faltante
+                    opCodes.AddRange(BitConverter.GetBytes(floatToken.Numero));
+                }
+                else if (arg is StringToken stringToken)
+                {
+                    // Constante de cadena - eliminar las comillas
+                    opCodes.Add((byte)OpCode.LoadC);
+                    opCodes.Add((byte)ConstantType.String); // Indicador de tipo de constante faltante
+
+                    // Extraer la cadena sin las comillas (suponiendo que las comillas están en las posiciones 0 y última)
+                    string content = stringToken.Content;
+                    if (content.StartsWith("\"") && content.EndsWith("\""))
+                        content = content.Substring(1, content.Length - 2);
+
+                    byte[] stringBytes = Encoding.UTF8.GetBytes(content);
+                    opCodes.Add((byte)stringBytes.Length);
+                    opCodes.AddRange(stringBytes);
+                }
+                else if (arg is BoolToken boolToken)
+                {
+                    // Constante booleana
+                    opCodes.Add((byte)OpCode.LoadC);
+                    opCodes.Add((byte)ConstantType.Bool); // Indicador de tipo de constante faltante
+                    opCodes.Add((byte)(boolToken.Value ? 1 : 0));
+                }
+                else if (arg is CharLiteralToken charToken)
+                {
+                    // Constante de carácter - extraer el carácter de las comillas
+                    opCodes.Add((byte)OpCode.LoadC);
+                    opCodes.Add((byte)ConstantType.Char); // Indicador de tipo de constante faltante
+
+                    // Extraer el carácter sin las comillas (suponiendo que el formato es 'x')
+                    char charValue = charToken.Content.Length >= 3 ? charToken.Content[1] : '\0';
+                    opCodes.Add((byte)charValue);
+                }
+                else
+                {
+                    throw new Exception($"Tipo de argumento no soportado en la llamada al método: {arg.GetType().Name}");
+                }
+            }
+
+            // Después de que todos los argumentos estén en la pila, añadir el opcode CALL
+            opCodes.Add((byte)OpCode.Call);
+
+            // Añadir el nombre del método
+            byte[] methodNameBytes = Encoding.UTF8.GetBytes(Value);
+            opCodes.Add((byte)methodNameBytes.Length);
+            opCodes.AddRange(methodNameBytes);
+
+            // Añadir el número de argumentos
+            opCodes.Add((byte)arguments.Count);
+
+            return opCodes;
+        }
+
     }
 }

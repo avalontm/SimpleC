@@ -1,4 +1,5 @@
 ﻿using SimpleC.Types.Tokens;
+using SimpleC.Utils;
 using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes

@@ -1,4 +1,5 @@
 ﻿using SimpleC.Types.Tokens;
+using SimpleC.Utils;
 
 namespace SimpleC.Types
 {
@@ -24,6 +25,12 @@ namespace SimpleC.Types
             {
                 Indentation = new string(' ', (Indent * 4));
             }
+        }
+
+        public virtual List<byte> ByteCode()
+        {
+            List<byte> OpCodes = new List<byte>();
+            return OpCodes;
         }
 
         public void VerifySeparator(List<Token> tokens)

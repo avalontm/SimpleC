@@ -1,4 +1,6 @@
-﻿namespace SimpleC.Types.AstNodes
+﻿using SimpleC.Utils;
+
+namespace SimpleC.Types.AstNodes
 {
     public class AssignmentNode : StatementSequenceNode
     {
