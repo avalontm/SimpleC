@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text;
 
 namespace SimpleC.VM.Instructions
@@ -82,25 +80,13 @@ namespace SimpleC.VM.Instructions
                     args.Insert(0, arg); // Insertar al principio para invertir orden
                     vm.OnDebugMessage($"Argument {i}: {arg ?? "null"}");
                 }
-
-                // Si es una función definida por el usuario, guardar dirección de retorno y saltar
-                if (vm.FunctionTable.TryGetValue(methodName, out int functionPosition))
+                Debug.WriteLine($"methodName: {methodName}" + $" {vm.FunctionTable.ContainsKey(methodName)}");
+                // Verificar si es una función definida por el usuario o integrada
+                if (vm.FunctionTable.ContainsKey(methodName))
                 {
-                    // Guardar posición actual como dirección de retorno
-                    vm.CallStack.Push(vm.Ip);
-
-                    // Crear nuevo contexto de variables locales para esta función
-                    vm.LocalContexts.Push(new ExecutionContext(methodName));
-
-                    // Volver a colocar argumentos en la pila para que la función los acceda
-                    foreach (var arg in args)
-                    {
-                        vm.Stack.Push(arg);
-                    }
-
-                    // Saltar a la posición de la función
-                    vm.Ip = functionPosition;
-                    vm.OnDebugMessage($"Jumping to user-defined function at position {functionPosition}");
+                   
+                    // Usar el nuevo método para ejecutar funciones registradas
+                    vm.FindAndExecuteRegisteredFunction(methodName);
                 }
                 else
                 {
@@ -145,52 +131,77 @@ namespace SimpleC.VM.Instructions
                         }
                         break;
 
-                    case "printint":
+                    case "scanf":
+                    case "input":
                         if (parameters.Count >= 1)
                         {
-                            if (parameters[0] is int intVal)
+                            string prompt = "";
+
+                            // Si hay un primer parámetro, usarlo como prompt
+                            if (parameters.Count >= 2)
                             {
-                                System.Console.WriteLine(intVal);
+                                prompt = parameters[1]?.ToString() ?? "";
+                                Console.Write(prompt);
                             }
-                            else if (int.TryParse(parameters[0]?.ToString(), out int parsedInt))
+
+                            // Leer la entrada del usuario
+                            string input = Console.ReadLine() ?? "";
+
+                            // El primer parámetro debe ser el nombre de la variable donde guardar el valor
+                            if (parameters[0] is string varName)
                             {
-                                System.Console.WriteLine(parsedInt);
+                                // Buscar primero en variables locales
+                                bool found = false;
+
+                                // Verificar contexto local
+                                if (vm.LocalContexts.Count > 0)
+                                {
+                                    var localContext = vm.LocalContexts.Peek();
+                                    if (localContext.Variables.ContainsKey(varName))
+                                    {
+                                        // Determinar el tipo de la variable
+                                        object currentValue = localContext.Variables[varName];
+
+                                        // Convertir la entrada al tipo correcto
+                                        object newValue = ConvertInputToType(input, currentValue);
+
+                                        // Guardar el valor en la variable
+                                        localContext.Variables[varName] = newValue;
+                                        found = true;
+                                        vm.OnDebugMessage($"Scanf stored '{newValue}' in local variable '{varName}'");
+                                    }
+                                }
+
+                                // Si no se encontró en local, buscar en global
+                                if (!found && vm.GlobalContext.Variables.ContainsKey(varName))
+                                {
+                                    // Determinar el tipo de la variable
+                                    object currentValue = vm.GlobalContext.Variables[varName];
+
+                                    // Convertir la entrada al tipo correcto
+                                    object newValue = ConvertInputToType(input, currentValue);
+
+                                    // Guardar el valor en la variable
+                                    vm.GlobalContext.Variables[varName] = newValue;
+                                    found = true;
+                                    vm.OnDebugMessage($"Scanf stored '{newValue}' in global variable '{varName}'");
+                                }
+
+                                if (!found)
+                                {
+                                    vm.OnDebugMessage($"Scanf could not find variable '{varName}' to store input");
+                                }
                             }
                             else
                             {
-                                System.Console.WriteLine(parameters[0]);
+                                vm.OnDebugMessage("Scanf first parameter must be a variable name");
                             }
                         }
                         else
                         {
-                            vm.OnDebugMessage($"PrintInt requires at least 1 parameter, received {parameters.Count}");
-                            System.Console.WriteLine("0");
+                            vm.OnDebugMessage("Scanf requires at least 1 parameter for the variable name");
                         }
                         break;
-
-                    case "printfloat":
-                        if (parameters.Count >= 1)
-                        {
-                            if (parameters[0] is float floatVal)
-                            {
-                                System.Console.WriteLine(floatVal);
-                            }
-                            else if (float.TryParse(parameters[0]?.ToString(), out float parsedFloat))
-                            {
-                                System.Console.WriteLine(parsedFloat);
-                            }
-                            else
-                            {
-                                System.Console.WriteLine(parameters[0]);
-                            }
-                        }
-                        else
-                        {
-                            vm.OnDebugMessage($"PrintFloat requires at least 1 parameter, received {parameters.Count}");
-                            System.Console.WriteLine("0.0");
-                        }
-                        break;
-
                     default:
                         vm.OnDebugMessage($"Unknown method: {methodName}");
                         break;
@@ -199,6 +210,46 @@ namespace SimpleC.VM.Instructions
             catch (Exception ex)
             {
                 vm.OnDebugMessage($"Error in built-in method '{methodName}': {ex.Message}");
+            }
+        }
+
+        // Añadir este método auxiliar para convertir la entrada del usuario al tipo correcto
+        private static object ConvertInputToType(string input, object targetValue)
+        {
+            if (targetValue is int)
+            {
+                if (int.TryParse(input, out int intValue))
+                    return intValue;
+                return 0;
+            }
+            else if (targetValue is float)
+            {
+                if (float.TryParse(input, out float floatValue))
+                    return floatValue;
+                return 0.0f;
+            }
+            else if (targetValue is bool)
+            {
+                if (bool.TryParse(input, out bool boolValue))
+                    return boolValue;
+
+                // Casos adicionales
+                input = input.ToLower().Trim();
+                if (input == "1" || input == "yes" || input == "y" || input == "si" || input == "s")
+                    return true;
+
+                return false;
+            }
+            else if (targetValue is char)
+            {
+                if (input.Length > 0)
+                    return input[0];
+                return '\0';
+            }
+            else
+            {
+                // Para strings y otros tipos, devolver la entrada sin cambios
+                return input;
             }
         }
     }

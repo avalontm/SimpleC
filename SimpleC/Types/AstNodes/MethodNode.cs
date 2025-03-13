@@ -89,8 +89,8 @@ namespace SimpleC.Types.AstNodes
                 }
             }
 
-            // Finaliza el método registrando el nombre
-            ParserGlobal.Register(Value, this);
+            // Registrar función globalmente con su tipo de retorno
+            ParserGlobal.Functions[name] = Type;
         }
 
         public override void Generate()

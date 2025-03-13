@@ -25,6 +25,15 @@ namespace SimpleC.VM.Instructions
             // Leer el nombre de la variable con formato longitud+nombre
             string varName = ReadVarName(vm);
 
+            // Check if it's a function
+            if (vm.FunctionTable.ContainsKey(varName))
+            {
+                // Push function name to stack
+                vm.Stack.Push(varName);
+                vm.OnDebugMessage($"Loaded function '{varName}'");
+                return;
+            }
+
             // Buscar la variable en el contexto apropiado
             if (isGlobal)
             {

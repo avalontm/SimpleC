@@ -385,6 +385,46 @@ namespace SimpleC.VM
         }
 
         /// <summary>
+        /// Encuentra y ejecuta una función registrada por su nombre
+        /// </summary>
+        /// <param name="functionName">Nombre de la función a ejecutar</param>
+        public void FindAndExecuteRegisteredFunction(string functionName)
+        {
+            if (FunctionTable.TryGetValue(functionName, out int functionPosition))
+            {
+                OnDebugMessage($"Executing registered function: {functionName} at position {functionPosition}");
+
+                // Guardar la posición actual del IP
+                int savedIp = Ip;
+
+                // Establecer el IP a la posición de la función
+                Ip = functionPosition;
+
+                // Crear un nuevo contexto local para la función
+                LocalContexts.Push(new ExecutionContext(functionName));
+
+                try
+                {
+                    // Ejecutar instrucciones de la función
+                    ExecuteInstructions();
+                }
+                finally
+                {
+                    // Restaurar el contexto previo
+                    if (LocalContexts.Count > 0)
+                        LocalContexts.Pop();
+
+                    // Restaurar la posición original del IP
+                    Ip = savedIp;
+                }
+            }
+            else
+            {
+                OnDebugMessage($"Function not found: {functionName}");
+            }
+        }
+
+        /// <summary>
         /// Bucle principal de ejecución de instrucciones
         /// </summary>
         // Modifica el método ExecuteInstructions en VirtualMachine.cs

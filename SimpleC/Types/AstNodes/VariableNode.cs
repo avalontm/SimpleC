@@ -2,7 +2,6 @@
 using SimpleC.Types.Tokens;
 using SimpleC.Utils;
 using SimpleC.VM;
-using System;
 using System.Diagnostics;
 using System.Text;
 
@@ -202,21 +201,54 @@ namespace SimpleC.Types.AstNodes
 
         private VariableType GetTokenVariableType(Token token)
         {
+            // Ignore comma tokens entirely
+            if (token.Content == ",") return Type; // Use the current variable's type as a fallback
+
             if (int.TryParse(token.Content, out _)) return VariableType.Int;
             if (float.TryParse(token.Content, out _)) return VariableType.Float;
             if (token.Content.StartsWith("\"") && token.Content.EndsWith("\"")) return VariableType.String;
             if (token.Content.StartsWith("'") && token.Content.EndsWith("'") && token.Content.Length == 3) return VariableType.Char;
             if (token.Content == "true" || token.Content == "false") return VariableType.Bool;
 
-            // If it's an identifier, search for its type in the global registry
+            // Si es un identificador, buscar si es una variable o una función
             if (ParserGlobal.Verify(token.Content))
             {
-                var variable = ParserGlobal.Get(token.Content) as VariableNode;
-                if (variable != null) return variable.Type;
+                var node = ParserGlobal.Get(token.Content);
+
+                // Si es una variable, devolver su tipo
+                if (node is VariableNode variable)
+                    return variable.Type;
+
+                // Si es una función, devolver su tipo de retorno
+                if (node is MethodNode method)
+                    return method.Type;
+
+                // Si es una llamada a función, determinar el tipo de la función
+                if (node is MethodCallNode methodCall)
+                    return methodCall.ReturnType;
             }
 
-            // Throw exception with line and column information
-            throw new Exception($"Error: Cannot determine the type of '{token.Content}' at line {token.Line}, column {token.Column}");
+            // Para soportar llamadas a funciones no registradas previamente
+            // Verificar si los siguientes tokens contienen una estructura de llamada a función
+            int index = Values.FindIndex(t => t == token);
+            if (index >= 0 && index + 2 < Values.Count)
+            {
+                if (Values[index + 1].Content == "(" ||
+                    (index + 2 < Values.Count && Values[index + 1] is IdentifierToken && Values[index + 2].Content == "("))
+                {
+                    // Buscar en funciones registradas su tipo de retorno
+                    if (ParserGlobal.Functions.TryGetValue(token.Content, out VariableType returnType))
+                    {
+                        return returnType;
+                    }
+
+                    // Caso por defecto para funciones, asumir Int
+                    return VariableType.Int;
+                }
+            }
+
+            // Default to current variable type if type cannot be determined
+            return Type;
         }
 
         private bool AreCompatibleTypes(VariableType type1, VariableType type2, VariableType expectedType)

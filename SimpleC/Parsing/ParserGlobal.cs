@@ -1,4 +1,5 @@
 ﻿using SimpleC.Types.AstNodes;
+using SimpleC.Types.Tokens;
 using System.Diagnostics;
 
 namespace SimpleC.Parsing
@@ -9,6 +10,8 @@ namespace SimpleC.Parsing
     {
         // Registro de nodos global existente
         private static Dictionary<string, StatementSequenceNode> Registry = new Dictionary<string, StatementSequenceNode>();
+        // En ParserGlobal.cs, añadir un diccionario para funciones
+        public static Dictionary<string, VariableType> Functions = new Dictionary<string, VariableType>();
 
         public static bool IsTranslate { get; internal set; }
 
