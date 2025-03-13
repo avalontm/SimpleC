@@ -323,10 +323,9 @@ namespace SimpleC
                 OpCodes.Add((byte)OpCode.Halt);
 
                 VirtualMachine vm = new VirtualMachine(OpCodes);
-                if (logEnabled)
-                {
-                    vm.DebugBytecode();
-                }
+#if DEBUG
+                vm.DebugBytecode();
+#endif
                 vm.Run();
             }
             catch (Exception ex)

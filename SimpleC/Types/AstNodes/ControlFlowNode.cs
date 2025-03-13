@@ -135,7 +135,7 @@ namespace SimpleC.Types.AstNodes
             return $"{KeywordToken.GetTranslatedKeyword(Type)}";
         }
 
-        public List<byte> ByteCode()
+        public override List<byte> ByteCode()
         {
             List<byte> opCodes = new List<byte>();
 
@@ -149,21 +149,6 @@ namespace SimpleC.Types.AstNodes
                 case "else":
                     opCodes.AddRange(GenerateElseBytecode());
                     break;
-                case "while":
-                    opCodes.AddRange(GenerateWhileBytecode());
-                    break;
-                case "for":
-                    opCodes.AddRange(GenerateForBytecode());
-                    break;
-                case "switch":
-                    opCodes.AddRange(GenerateSwitchBytecode());
-                    break;
-                case "case":
-                    opCodes.AddRange(GenerateCaseBytecode());
-                    break;
-                case "default":
-                    opCodes.AddRange(GenerateDefaultBytecode());
-                    break;
             }
 
             return opCodes;
@@ -173,10 +158,10 @@ namespace SimpleC.Types.AstNodes
         {
             List<byte> opCodes = new List<byte>();
 
-            // Generar bytecode para la condición
+            // Generar bytecode para la condición usando Condition
             if (Condition.Count > 0)
             {
-                // Convertir la condición a RPN (Notación Polaca Inversa)
+                // Convertir los tokens de Condition a RPN (Notación Polaca Inversa)
                 List<Token> rpnCondition = ConvertToRPN(Condition);
                 GenerateRPNBytecode(rpnCondition, opCodes);
             }
@@ -190,18 +175,18 @@ namespace SimpleC.Types.AstNodes
             // Añadir longitud del cuerpo
             opCodes.AddRange(BitConverter.GetBytes(bodyBytecode.Count));
 
-            // Añadir bytecode del cuerpo
+            // Añadir bytecode del cuerpo del if
             opCodes.AddRange(bodyBytecode);
 
             return opCodes;
         }
 
-        /// <summary>
-        /// Genera bytecode para una instrucción else
-        /// </summary>
         private List<byte> GenerateElseBytecode()
         {
             List<byte> opCodes = new List<byte>();
+
+            // Depuración para rastrear el proceso de generación de bytecode del else
+            Debug.WriteLine($"Generating bytecode for else block with {SubNodes.Count()} subnodes");
 
             // Generar bytecode para el cuerpo del else
             List<byte> bodyBytecode = GenerateBodyBytecode();
@@ -215,204 +200,56 @@ namespace SimpleC.Types.AstNodes
                 opCodes.AddRange(BitConverter.GetBytes(bodyBytecode.Count));
             }
 
-            // Añadir bytecode del cuerpo
+            // Añadir bytecode del cuerpo del else
             opCodes.AddRange(bodyBytecode);
 
             return opCodes;
         }
-
-        private List<byte> GenerateWhileBytecode()
-        {
-            List<byte> opCodes = new List<byte>();
-
-            // Guardar la posición inicial para el salto de vuelta
-            int conditionStart = opCodes.Count;
-
-            // Generar bytecode para la condición
-            if (Condition.Count > 0)
-            {
-                List<Token> rpnCondition = ConvertToRPN(Condition);
-                GenerateRPNBytecode(rpnCondition, opCodes);
-            }
-
-            // Añadir opcode de salto condicional
-            opCodes.Add((byte)OpCode.JumpIfFalse);
-
-            // Generar bytecode para el cuerpo del while
-            List<byte> bodyBytecode = GenerateBodyBytecode();
-
-            // Añadir longitud del cuerpo
-            opCodes.AddRange(BitConverter.GetBytes(bodyBytecode.Count));
-
-            // Añadir bytecode del cuerpo
-            opCodes.AddRange(bodyBytecode);
-
-            // Añadir salto de vuelta al inicio de la condición
-            opCodes.Add((byte)OpCode.Jump);
-            int jumpBackOffset = -(opCodes.Count - conditionStart);
-            opCodes.AddRange(BitConverter.GetBytes(jumpBackOffset));
-
-            return opCodes;
-        }
-        private List<byte> GenerateForBytecode()
-        {
-            List<byte> opCodes = new List<byte>();
-
-            // Descomponer los tokens de la condición for (inicialización; condición; incremento)
-            var forParts = SplitForTokens(Condition);
-
-            // Generar bytecode para la inicialización
-            if (forParts.Initialization.Count > 0)
-            {
-                List<Token> rpnInit = ConvertToRPN(forParts.Initialization);
-                GenerateRPNBytecode(rpnInit, opCodes);
-            }
-
-            // Guardar la posición inicial para el salto de vuelta
-            int conditionStart = opCodes.Count;
-
-            // Generar bytecode para la condición
-            if (forParts.Condition.Count > 0)
-            {
-                List<Token> rpnCondition = ConvertToRPN(forParts.Condition);
-                GenerateRPNBytecode(rpnCondition, opCodes);
-            }
-
-            // Añadir opcode de salto condicional
-            opCodes.Add((byte)OpCode.JumpIfFalse);
-
-            // Generar bytecode para el cuerpo del for
-            List<byte> bodyBytecode = GenerateBodyBytecode();
-
-            // Añadir longitud del cuerpo
-            opCodes.AddRange(BitConverter.GetBytes(bodyBytecode.Count));
-
-            // Añadir bytecode del cuerpo
-            opCodes.AddRange(bodyBytecode);
-
-            // Generar bytecode para el incremento
-            if (forParts.Increment.Count > 0)
-            {
-                List<Token> rpnIncrement = ConvertToRPN(forParts.Increment);
-                GenerateRPNBytecode(rpnIncrement, opCodes);
-            }
-
-            // Añadir salto de vuelta al inicio de la condición
-            opCodes.Add((byte)OpCode.Jump);
-            int jumpBackOffset = -(opCodes.Count - conditionStart);
-            opCodes.AddRange(BitConverter.GetBytes(jumpBackOffset));
-
-            return opCodes;
-        }
-
-        /// <summary>
-        /// Genera bytecode para una instrucción switch
-        /// </summary>
-        private List<byte> GenerateSwitchBytecode()
-        {
-            List<byte> opCodes = new List<byte>();
-
-            // Generar bytecode para la expresión del switch
-            if (Condition.Count > 0)
-            {
-                List<Token> rpnSwitch = ConvertToRPN(Condition);
-                GenerateRPNBytecode(rpnSwitch, opCodes);
-            }
-
-            // Generar bytecode para los cases
-            foreach (var node in SubNodes)
-            {
-                if (node is ControlFlowNode caseNode)
-                {
-                    opCodes.AddRange(caseNode.ByteCode());
-                }
-            }
-
-            return opCodes;
-        }
-
-        /// <summary>
-        /// Genera bytecode para un case
-        /// </summary>
-        private List<byte> GenerateCaseBytecode()
-        {
-            List<byte> opCodes = new List<byte>();
-
-            // Generar bytecode para la comparación del case
-            if (Condition.Count > 0)
-            {
-                // Eliminar el token de ":"
-                var caseCondition = Condition.Where(t => t.Content != ":").ToList();
-                List<Token> rpnCase = ConvertToRPN(caseCondition);
-                GenerateRPNBytecode(rpnCase, opCodes);
-
-                // Añadir comparación de igualdad
-                opCodes.Add((byte)OpCode.Equal);
-
-                // Añadir salto condicional si no es igual
-                opCodes.Add((byte)OpCode.JumpIfFalse);
-            }
-
-            // Generar bytecode para el cuerpo del case
-            List<byte> bodyBytecode = GenerateBodyBytecode();
-
-            // Añadir longitud del cuerpo
-            opCodes.AddRange(BitConverter.GetBytes(bodyBytecode.Count));
-
-            // Añadir bytecode del cuerpo
-            opCodes.AddRange(bodyBytecode);
-
-            return opCodes;
-        }
-
-        /// <summary>
-        /// Genera bytecode para el case default
-        /// </summary>
-        private List<byte> GenerateDefaultBytecode()
-        {
-            // Simplemente genera el bytecode para el cuerpo
-            return GenerateBodyBytecode();
-        }
-
-        /// <summary>
-        /// Genera bytecode para el cuerpo de un bloque de control
-        /// </summary>
         private List<byte> GenerateBodyBytecode()
         {
             List<byte> opCodes = new List<byte>();
 
+            // Depuración para rastrear los nodos internos
+            Debug.WriteLine($"Generating body bytecode for {Type} with {SubNodes.Count()} subnodes");
+
             // Generar bytecode para cada nodo hijo
             foreach (var node in SubNodes)
             {
+                Debug.WriteLine($"Processing node type: {node.GetType().Name}");
+
                 // Manejar diferentes tipos de nodos
                 if (node is StatementSequenceNode statementNode)
                 {
-                    opCodes.AddRange(GenerateStatementBytecode(statementNode));
+                    // Generar bytecode para el nodo de declaración
+                    List<byte> nodeBytecode = GenerateStatementBytecode(statementNode);
+                    opCodes.AddRange(nodeBytecode);
                 }
             }
 
             return opCodes;
         }
 
-        /// <summary>
-        /// Genera bytecode para un nodo de declaración
-        /// </summary>
         private List<byte> GenerateStatementBytecode(StatementSequenceNode node)
         {
             // Método para generar bytecode dependiendo del tipo de nodo
+            Debug.WriteLine($"Generating statement bytecode for {node.GetType().Name}");
+
             if (node is ReturnNode returnNode)
             {
                 return returnNode.ByteCode();
             }
+            else if (node is MethodCallNode callNode)
+            {
+                // Si es una llamada a función (como printf)
+                return callNode.ByteCode();
+            }
             // Añadir más tipos de nodos según sea necesario
 
             // Si no se reconoce el tipo, devolver una lista vacía
+            Debug.WriteLine($"Unhandled node type: {node.GetType().Name}");
             return new List<byte>();
         }
 
-        /// <summary>
-        /// Convierte una expresión infija a Notación Polaca Inversa (RPN)
-        /// </summary>
         private List<Token> ConvertToRPN(List<Token> infixTokens)
         {
             List<Token> output = new List<Token>();
@@ -470,9 +307,6 @@ namespace SimpleC.Types.AstNodes
             return output;
         }
 
-        /// <summary>
-        /// Obtiene la precedencia de un operador
-        /// </summary>
         private int GetPrecedence(OperatorToken op)
         {
             switch (op.Content)
@@ -541,12 +375,6 @@ namespace SimpleC.Types.AstNodes
                         case ">=":
                             opCodes.Add((byte)OpCode.GreaterEqual);
                             break;
-                        case "&&":
-                            opCodes.Add((byte)OpCode.And);
-                            break;
-                        case "||":
-                            opCodes.Add((byte)OpCode.Or);
-                            break;
                         default:
                             Debug.WriteLine($"Unsupported operator: {opToken.Content}");
                             break;
@@ -555,14 +383,11 @@ namespace SimpleC.Types.AstNodes
             }
         }
 
-        /// <summary>
-        /// Genera bytecode para un token individual
-        /// </summary>
         private void GenerateTokenBytecode(Token token, List<byte> opCodes)
         {
             if (token is IdentifierToken identToken)
             {
-                // Verificar si el identificador es una variable local o global
+                // Verificar si es una variable local o global
                 string varName = identToken.Content;
                 bool isLocal = this.Verify(varName);
                 bool isGlobal = !isLocal && ParserGlobal.Verify(varName);
@@ -645,54 +470,6 @@ namespace SimpleC.Types.AstNodes
             }
         }
 
-        /// <summary>
-        /// Estructura para descomponer los tokens de un bucle for
-        /// </summary>
-        private struct ForTokens
-        {
-            public List<Token> Initialization;
-            public List<Token> Condition;
-            public List<Token> Increment;
-        }
 
-        /// <summary>
-        /// Divide los tokens de un for en inicialización, condición e incremento
-        /// </summary>
-        private ForTokens SplitForTokens(List<Token> tokens)
-        {
-            ForTokens forTokens = new ForTokens
-            {
-                Initialization = new List<Token>(),
-                Condition = new List<Token>(),
-                Increment = new List<Token>()
-            };
-
-            int stage = 0; // 0: inicialización, 1: condición, 2: incremento
-            int parenthesesDepth = 0;
-
-            foreach (var token in tokens)
-            {
-                if (token.Content == ";")
-                {
-                    stage++;
-                    continue;
-                }
-
-                switch (stage)
-                {
-                    case 0:
-                        forTokens.Initialization.Add(token);
-                        break;
-                    case 1:
-                        forTokens.Condition.Add(token);
-                        break;
-                    case 2:
-                        forTokens.Increment.Add(token);
-                        break;
-                }
-            }
-
-            return forTokens;
-        }
     }
 }

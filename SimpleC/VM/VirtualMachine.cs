@@ -627,6 +627,14 @@ namespace SimpleC.VM
                             OnDebugMessage("Program execution halted");
                             return;
 
+                        case OpCode.JumpIfFalse:
+                            JumpInstructions.ExecuteJumpIfFalse();
+                            break;
+
+                        case OpCode.Jump:
+                            JumpInstructions.ExecuteJump();
+                            break;
+
                         default:
                             OnDebugMessage($"Unknown opcode: {opcode} (0x{opcode:X2}) at position {Ip}");
                             Ip++; // Avanzar manualmente en caso de opcode desconocido
