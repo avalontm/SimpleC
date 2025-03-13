@@ -1,69 +1,90 @@
-﻿using System.Diagnostics;
+﻿using System;
 using System.Text;
 
 namespace SimpleC.VM.Instructions
 {
-    /// <summary>
-    /// Implementa la instrucción para almacenar un valor en una variable
-    /// </summary>
     public static class StoreVariable
     {
+        /// <summary>
+        /// Ejecuta la instrucción Store Variable
+        /// </summary>
+        // Asegúrate que StoreVariable preserve el valor de string correctamente
         public static void Execute()
         {
             var vm = VirtualMachine.Instance;
-            var bytecode = vm.Bytecode;
-            vm.Ip++; // Avanzar más allá del opcode Global
+            if (vm == null)
+            {
+                throw new InvalidOperationException("VM instance not available");
+            }
 
-            // Leer tipo de variable
-            if (vm.Ip >= bytecode.Count)
-                vm.ReportError("Unexpected end of bytecode while reading global variable type", false);
+            // Determinar si estamos en un store global o local
+            bool isGlobal = vm.CurrentOpcode == (byte)OpCode.StoreGlobal;
+
+            // Avanzar al siguiente byte después del opcode
+            vm.Ip++;
 
             // Leer el tipo de constante
-            byte typeCode = bytecode[vm.Ip++];
-            ConstantType varType = (ConstantType)typeCode;
+            byte constantType = vm.Bytecode[vm.Ip++];
 
-            // Validar que hay suficientes bytes para el tipo de dato
-            int requiredBytes = varType switch
+            // Leer el nombre de la variable con formato longitud+nombre
+            string varName = ReadVarName(vm);
+
+            // Verificar que haya algún valor en la pila
+            if (vm.Stack.Count == 0)
             {
-                ConstantType.Integer => 4,
-                ConstantType.Float => 4,
-                ConstantType.String => 1, // Al menos el byte de longitud
-                ConstantType.Bool => 1,
-                ConstantType.Char => 1,
-                _ => throw new Exception($"Unsupported constant type: {varType}")
-            };
+                vm.ReportError($"Stack is empty. Cannot store value in variable '{varName}'");
+                return;
+            }
 
-            if (vm.Ip + requiredBytes > bytecode.Count)
-                vm.ReportError($"Unexpected end of bytecode while reading {varType} value", false);
+            // Obtener el valor de la pila
+            object value = vm.Stack.Pop();
 
-            // Extraer el valor según el tipo
-            object value = varType switch
+            // Almacenar el valor en el contexto apropiado
+            if (isGlobal)
             {
-                ConstantType.Integer => BitConverter.ToInt32(bytecode.ToArray(), vm.Ip),
-                ConstantType.Float => BitConverter.ToSingle(bytecode.ToArray(), vm.Ip),
-                ConstantType.String => ReadString(vm),
-                ConstantType.Bool => bytecode[vm.Ip] == 1,
-                ConstantType.Char => (char)bytecode[vm.Ip],
-                _ => throw new Exception($"Unsupported constant type: {varType}")
-            };
-
-
-            // Almacenar en la última variable registrada
-            if (vm.CurrentContext.LastVariable == null)
-                vm.ReportError("No variable defined to store value", false);
-
-            vm.CurrentContext.Variables[vm.CurrentContext.LastVariable] = value;
-            vm.OnDebugMessage($"Stored variable: {vm.CurrentContext.LastVariable} = {value}");
+                vm.GlobalContext.Variables[varName] = value;
+                vm.OnVariableChanged($"Global variable '{varName}' changed to:", value);
+                // Añadir un mensaje detallado de depuración
+                vm.OnDebugMessage($"StoreGlobal: '{varName}' = '{value}' (type: {value?.GetType().Name ?? "null"})");
+            }
+            else
+            {
+                vm.CurrentContext.Variables[varName] = value;
+                vm.OnVariableChanged($"Local variable '{varName}' changed to:", value);
+                // Añadir un mensaje detallado de depuración
+                vm.OnDebugMessage($"Store: '{varName}' = '{value}' (type: {value?.GetType().Name ?? "null"})");
+            }
         }
 
-        private static string ReadString(VirtualMachine vm)
+        /// <summary>
+        /// Lee el nombre de la variable del bytecode según el formato generado
+        /// </summary>
+        private static string ReadVarName(VirtualMachine vm)
         {
-            byte length = vm.Bytecode[vm.Ip];
-            return Encoding.UTF8.GetString(
-                vm.Bytecode.ToArray(),
-                vm.Ip + 1,
-                length
-            );
+            // Leer longitud del nombre (1 byte)
+            if (vm.Ip >= vm.Bytecode.Count)
+            {
+                vm.ReportError("Unexpected end of bytecode while reading variable name length");
+                return string.Empty;
+            }
+
+            byte nameLength = vm.Bytecode[vm.Ip++];
+
+            // Verificar que hay suficientes bytes para el nombre
+            if (vm.Ip + nameLength > vm.Bytecode.Count)
+            {
+                vm.ReportError($"Unexpected end of bytecode while reading variable name (expected {nameLength} bytes)");
+                return string.Empty;
+            }
+
+            // Leer los bytes del nombre
+            byte[] nameBytes = new byte[nameLength];
+            for (int i = 0; i < nameLength; i++)
+            {
+                nameBytes[i] = vm.Bytecode[vm.Ip++];
+            }
+
+            return Encoding.UTF8.GetString(nameBytes);
         }
     }
 }

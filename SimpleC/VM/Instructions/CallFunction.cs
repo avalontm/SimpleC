@@ -14,6 +14,7 @@ namespace SimpleC.VM.Instructions
         /// </summary>
         public static void Execute()
         {
+            Debug.WriteLine($"CallFunction");
             VirtualMachine.Instance.Ip++; // Avanzar más allá del opcode CALL
 
             // Leer longitud del nombre del método
@@ -26,8 +27,13 @@ namespace SimpleC.VM.Instructions
             if (VirtualMachine.Instance.Ip + methodNameLength > VirtualMachine.Instance.Bytecode.Count)
                 VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading method name");
 
-            string methodName = Encoding.UTF8.GetString(VirtualMachine.Instance.Bytecode.ToArray(), VirtualMachine.Instance.Ip, methodNameLength);
-            VirtualMachine.Instance.Ip += methodNameLength;
+            // Crear array para leer los bytes del nombre
+            byte[] nameBytes = new byte[methodNameLength];
+            for (int i = 0; i < methodNameLength; i++)
+            {
+                nameBytes[i] = VirtualMachine.Instance.Bytecode[VirtualMachine.Instance.Ip++];
+            }
+            string methodName = Encoding.UTF8.GetString(nameBytes);
 
             VirtualMachine.Instance.OnDebugMessage($"Calling method: {methodName}");
 

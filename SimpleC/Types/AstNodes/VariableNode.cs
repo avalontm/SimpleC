@@ -2,6 +2,7 @@
 using SimpleC.Types.Tokens;
 using SimpleC.Utils;
 using SimpleC.VM;
+using System;
 using System.Diagnostics;
 using System.Text;
 
@@ -258,9 +259,6 @@ namespace SimpleC.Types.AstNodes
         {
             List<byte> byteCode = new List<byte>();
 
-            // Registrar la variable
-            byteCode.AddRange(GenerateVariableByteCode());
-
             // Generar código para la expresión usando la lista Values
             byteCode.AddRange(GenerateExpressionByteCode());
 
@@ -465,73 +463,105 @@ namespace SimpleC.Types.AstNodes
             return -1; // No se encontró paréntesis de cierre correspondiente
         }
 
+        // Versión corregida del método GenerateValueByteCode
         private List<byte> GenerateValueByteCode(Token value)
         {
             List<byte> byteCode = new List<byte>();
 
-
-            // Es un valor literal
-            byteCode.Add((byte)OpCode.Store);
-
+            // Primero, cargar el valor en la pila
             if (value is NumberLiteralToken)
             {
-                // Literal entero
+                // Literal entero - primero cargamos la constante en la pila
+                byteCode.Add((byte)OpCode.LoadC);
                 byteCode.Add((byte)ConstantType.Integer);
                 int intValue = int.Parse(value.Content);
                 byteCode.AddRange(BitConverter.GetBytes(intValue));
             }
             else if (value is FloatLiteralToken)
             {
-                // Literal float
+                // Literal float - primero cargamos la constante en la pila
+                byteCode.Add((byte)OpCode.LoadC);
                 byteCode.Add((byte)ConstantType.Float);
                 float floatValue = float.Parse(value.Content);
                 byteCode.AddRange(BitConverter.GetBytes(floatValue));
             }
             else if (value is StringToken)
             {
-                // Literal string - eliminar las comillas
+                // Literal string - primero cargamos la constante en la pila
+                byteCode.Add((byte)OpCode.LoadC);
                 byteCode.Add((byte)ConstantType.String);
                 string strValue = value.Content.Substring(1, value.Content.Length - 2);
                 byte[] strBytes = Encoding.UTF8.GetBytes(strValue);
-                byteCode.Add((byte)strBytes.Length);  // Primero almacenar la longitud
-                byteCode.AddRange(strBytes);          // Luego los datos de la cadena
-
+                byteCode.Add((byte)strBytes.Length);
+                byteCode.AddRange(strBytes);
             }
             else if (value is BoolToken)
             {
-                // Literal booleano
+                // Literal booleano - primero cargamos la constante en la pila
+                byteCode.Add((byte)OpCode.LoadC);
                 byteCode.Add((byte)ConstantType.Bool);
                 byteCode.Add((byte)(value.Content == "true" ? 1 : 0));
             }
             else if (value is CharLiteralToken)
             {
-                // Literal de carácter - extraer el char entre comillas
+                // Literal de carácter - primero cargamos la constante en la pila
+                byteCode.Add((byte)OpCode.LoadC);
                 byteCode.Add((byte)ConstantType.Char);
                 char charValue = value.Content[1];
                 byteCode.Add((byte)charValue);
+            }
+            else if (value is IdentifierToken)
+            {
+                // Si es una variable, cargarla desde su contexto apropiado
+                string varName = value.Content;
+
+
+                if (IsGlobal)
+                {
+                    byteCode.Add((byte)OpCode.LoadGlobal);
+                }
+                else
+                {
+                    byteCode.Add((byte)OpCode.Load);
+                }
+
+                // Añadir nombre de la variable
+                byte[] nameBytes = Encoding.UTF8.GetBytes(varName);
+                byteCode.Add((byte)nameBytes.Length);
+                byteCode.AddRange(nameBytes);
             }
             else
             {
                 throw new Exception($"Tipo de valor no soportado: {value.GetType().Name} para el valor {value.Content}");
             }
 
+            // Luego del LoadC, ahora añadir la instrucción para almacenar
+            if (IsGlobal)
+            {
+                byteCode.Add((byte)OpCode.StoreGlobal);
+            }
+            else
+            {
+                byteCode.Add((byte)OpCode.Store);
+            }
+
+            // Añadir el tipo para la instrucción Store
+            byteCode.Add((byte)ConvertVariableTypeToConstantType(Type));
+
+            // Añadir el nombre de la variable
+            byteCode.AddRange(GetName());
+
             return byteCode;
         }
 
-        // Generar bytecode para variables globales
-        private List<byte> GenerateVariableByteCode()
+        List<byte> GetName()
         {
             List<byte> byteCode = new List<byte>();
 
-            byteCode.Add((byte)OpCode.Load);
-
-            // Tipo de variable
-            byteCode.Add((byte)ConvertVariableTypeToConstantType(Type));
-
             // Nombre de la variable como bytes
             byte[] nameBytes = Encoding.UTF8.GetBytes(Identifier.Content);
-            byteCode.Add((byte)nameBytes.Length); 
-            byteCode.AddRange(nameBytes); 
+            byteCode.Add((byte)nameBytes.Length);
+            byteCode.AddRange(nameBytes);
 
             return byteCode;
         }

@@ -1,9 +1,10 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 
 namespace SimpleC.VM.Instructions
 {
     /// <summary>
-    /// Implementa la instrucción para cargar una constante en la pila
+    /// Implementa la instrucción para cargar constantes en la pila
     /// </summary>
     public static class LoadConstant
     {
@@ -12,98 +13,122 @@ namespace SimpleC.VM.Instructions
         /// </summary>
         public static void Execute()
         {
-            VirtualMachine.Instance.Ip++; // Avanzar al byte de tipo de constante
-            if (VirtualMachine.Instance.Ip >= VirtualMachine.Instance.Bytecode.Count)
-                VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading constant type");
-
-            ConstantType constantType = (ConstantType)VirtualMachine.Instance.Bytecode[VirtualMachine.Instance.Ip];
-            VirtualMachine.Instance.OnDebugMessage($"LoadConstant: {constantType}");
-
-            switch (constantType)
+            var vm = VirtualMachine.Instance;
+            if (vm == null)
             {
-                case ConstantType.Integer:
-                    VirtualMachine.Instance.Ip++; // Avanzar al inicio del valor entero
-                    if (VirtualMachine.Instance.Ip + 3 >= VirtualMachine.Instance.Bytecode.Count)
-                        VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading integer value");
-
-                    int intValue = BitConverter.ToInt32(VirtualMachine.Instance.Bytecode.ToArray(), VirtualMachine.Instance.Ip);
-                    VirtualMachine.Instance.Stack.Push(intValue);
-                    VirtualMachine.Instance.OnDebugMessage($"Pushed integer: {intValue}");
-                    VirtualMachine.Instance.Ip += 3; // Avanzar a la siguiente instrucción
-                    break;
-
-                case ConstantType.String:
-                    VirtualMachine.Instance.Ip++; // Avanzar al byte de longitud de string
-                    if (VirtualMachine.Instance.Ip >= VirtualMachine.Instance.Bytecode.Count)
-                        VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading string length");
-
-                    ushort stringLength;
-                    byte lengthByte = VirtualMachine.Instance.Bytecode[VirtualMachine.Instance.Ip];
-
-                    if (lengthByte > 127) // Usando el bit alto como indicador para longitud de 2 bytes
-                    {
-                        if (VirtualMachine.Instance.Ip + 1 >= VirtualMachine.Instance.Bytecode.Count)
-                            VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading string length (2 bytes)");
-
-                        stringLength = BitConverter.ToUInt16(VirtualMachine.Instance.Bytecode.ToArray(), VirtualMachine.Instance.Ip);
-                        VirtualMachine.Instance.Ip += 2; // Saltar 2 bytes de longitud
-                    }
-                    else
-                    {
-                        stringLength = lengthByte;
-                        VirtualMachine.Instance.Ip++; // Saltar 1 byte de longitud
-                    }
-
-                    if (VirtualMachine.Instance.Ip + stringLength > VirtualMachine.Instance.Bytecode.Count)
-                        VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading string data");
-
-                    string strValue = Encoding.UTF8.GetString(VirtualMachine.Instance.Bytecode.ToArray(), VirtualMachine.Instance.Ip, stringLength);
-                    VirtualMachine.Instance.Stack.Push(strValue);
-                    VirtualMachine.Instance.OnDebugMessage($"Pushed string: \"{strValue}\"");
-                    VirtualMachine.Instance.Ip += stringLength - 1; // Ajustar para el incremento del bucle principal
-                    break;
-
-                case ConstantType.Float:
-                    VirtualMachine.Instance.Ip++; // Avanzar al inicio del valor float
-                    if (VirtualMachine.Instance.Ip + 3 >= VirtualMachine.Instance.Bytecode.Count)
-                        VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading float value");
-
-                    float floatValue = BitConverter.ToSingle(VirtualMachine.Instance.Bytecode.ToArray(), VirtualMachine.Instance.Ip);
-                    VirtualMachine.Instance.Stack.Push(floatValue);
-                    VirtualMachine.Instance.OnDebugMessage($"Pushed float: {floatValue}");
-                    VirtualMachine.Instance.Ip += 3; // Saltar bytes
-                    break;
-
-                case ConstantType.Char:
-                    VirtualMachine.Instance.Ip++; // Avanzar al valor char
-                    if (VirtualMachine.Instance.Ip >= VirtualMachine.Instance.Bytecode.Count)
-                        VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading char value");
-
-                    char charValue = (char)VirtualMachine.Instance.Bytecode[VirtualMachine.Instance.Ip];
-                    VirtualMachine.Instance.Stack.Push(charValue);
-                    VirtualMachine.Instance.OnDebugMessage($"Pushed char: '{charValue}'");
-                    break;
-
-                case ConstantType.Bool:
-                    VirtualMachine.Instance.Ip++; // Avanzar al valor bool
-                    if (VirtualMachine.Instance.Ip >= VirtualMachine.Instance.Bytecode.Count)
-                        VirtualMachine.Instance.ReportError("Unexpected end of bytecode while reading bool value");
-
-                    bool boolValue = VirtualMachine.Instance.Bytecode[VirtualMachine.Instance.Ip] != 0;
-                    VirtualMachine.Instance.Stack.Push(boolValue);
-                    VirtualMachine.Instance.OnDebugMessage($"Pushed boolean: {boolValue}");
-                    break;
-
-                case ConstantType.Void:
-                    VirtualMachine.Instance.OnDebugMessage("Void type detected, nothing pushed to stack");
-                    break;
-
-                default:
-                    VirtualMachine.Instance.ReportError($"Unknown constant type: {constantType}");
-                    break;
+                throw new InvalidOperationException("VM instance not available");
             }
 
-            VirtualMachine.Instance.Ip++; // Avanzar a la siguiente instrucción
+            // Avanzar al siguiente byte después del opcode
+            vm.Ip++;
+
+            // Leer el tipo de constante
+            if (vm.Ip >= vm.Bytecode.Count)
+            {
+                vm.ReportError("Unexpected end of bytecode while reading constant type");
+                return;
+            }
+
+            byte constantType = vm.Bytecode[vm.Ip++];
+
+            // Cargar valor según el tipo
+            object value = ReadConstantValue(vm, (ConstantType)constantType);
+
+            // Poner el valor en la pila
+            vm.Stack.Push(value);
+            vm.OnDebugMessage($"Loaded constant value: {value} of type {(ConstantType)constantType}");
+        }
+
+        /// <summary>
+        /// Lee el valor de una constante según su tipo
+        /// </summary>
+        private static object ReadConstantValue(VirtualMachine vm, ConstantType type)
+        {
+            switch (type)
+            {
+                case ConstantType.Integer:
+                    // Leer entero (4 bytes)
+                    if (vm.Ip + 4 > vm.Bytecode.Count)
+                    {
+                        vm.ReportError("Unexpected end of bytecode while reading integer value");
+                        return 0;
+                    }
+
+                    byte[] intBytes = new byte[4];
+                    for (int i = 0; i < 4; i++)
+                    {
+                        intBytes[i] = vm.Bytecode[vm.Ip++];
+                    }
+
+                    return BitConverter.ToInt32(intBytes, 0);
+
+                case ConstantType.Float:
+                    // Leer float (4 bytes)
+                    if (vm.Ip + 4 > vm.Bytecode.Count)
+                    {
+                        vm.ReportError("Unexpected end of bytecode while reading float value");
+                        return 0.0f;
+                    }
+
+                    byte[] floatBytes = new byte[4];
+                    for (int i = 0; i < 4; i++)
+                    {
+                        floatBytes[i] = vm.Bytecode[vm.Ip++];
+                    }
+
+                    return BitConverter.ToSingle(floatBytes, 0);
+
+                case ConstantType.String:
+                    // Leer longitud del string
+                    if (vm.Ip >= vm.Bytecode.Count)
+                    {
+                        vm.ReportError("Unexpected end of bytecode while reading string length");
+                        return string.Empty;
+                    }
+
+                    byte strLength = vm.Bytecode[vm.Ip++];
+
+                    // Leer bytes del string
+                    if (vm.Ip + strLength > vm.Bytecode.Count)
+                    {
+                        vm.ReportError($"Unexpected end of bytecode while reading string (expected {strLength} bytes)");
+                        return string.Empty;
+                    }
+
+                    byte[] strBytes = new byte[strLength];
+                    for (int i = 0; i < strLength; i++)
+                    {
+                        strBytes[i] = vm.Bytecode[vm.Ip++];
+                    }
+
+                    return Encoding.UTF8.GetString(strBytes);
+
+                case ConstantType.Bool:
+                    // Leer bool (1 byte)
+                    if (vm.Ip >= vm.Bytecode.Count)
+                    {
+                        vm.ReportError("Unexpected end of bytecode while reading boolean value");
+                        return false;
+                    }
+
+                    byte boolByte = vm.Bytecode[vm.Ip++];
+                    return boolByte != 0;
+
+                case ConstantType.Char:
+                    // Leer char (1 byte)
+                    if (vm.Ip >= vm.Bytecode.Count)
+                    {
+                        vm.ReportError("Unexpected end of bytecode while reading char value");
+                        return '\0';
+                    }
+
+                    byte charByte = vm.Bytecode[vm.Ip++];
+                    return (char)charByte;
+
+                default:
+                    vm.ReportError($"Unknown constant type: {type}");
+                    return null;
+            }
         }
     }
 }

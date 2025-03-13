@@ -7,9 +7,6 @@ namespace SimpleC.VM.Instructions
     /// </summary>
     public static class LoadString
     {
-        /// <summary>
-        /// Ejecuta la instrucción LoadS que carga un string en la pila
-        /// </summary>
         public static void Execute()
         {
             if (VirtualMachine.Instance.Stack.Count == 0)

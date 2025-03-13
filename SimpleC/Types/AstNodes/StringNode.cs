@@ -25,8 +25,8 @@ namespace SimpleC.Types.AstNodes
         public override List<byte> ByteCode()
         {
             List<byte> OpCodes = new List<byte>();
-
-            Debug.WriteLine($"string: {Indent}");
+            OpCodes.Add((byte)OpCode.Store);
+         
             foreach (var token in Values)
             {
                 // Solo procesamos si el token es un StringToken
@@ -34,7 +34,7 @@ namespace SimpleC.Types.AstNodes
                 {
                     byte[] stringBytes = System.Text.Encoding.UTF8.GetBytes(stringToken.Content);
 
-                    OpCodes.Add((byte)OpCode.LoadS); // Opcode para LOAD_STRING
+                  
                     OpCodes.Add((byte)stringBytes.Length); // Longitud de la cadena
                     OpCodes.AddRange(stringBytes); // Cuerpo de la cadena
                 }

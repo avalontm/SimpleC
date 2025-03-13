@@ -13,7 +13,6 @@
         Load = 0x11,    // Cargar variable en la pila
         Store = 0x12,   // Almacenar valor de la pila en una variable
         Dup = 0x13,     // Duplicar el valor superior de la pila
-        LoadG = 0x14,   // Cargar variable global (no usado actualmente, usar Load)
         LoadS = 0x15,   // Cargar string desde bytes en la pila
 
         // Operaciones de pila (0x20-0x2F)
@@ -42,9 +41,8 @@
         // Operaciones de función (0x60-0x6F)
         Call = 0x60,    // Llamada a función
 
-        // Operaciones de declaración (0x70-0x7F)
-        GlobalLoad = 0x70,  // Declaración de variable global
-        GlobalStore = 0x71,
+        StoreGlobal = 0x70,
+        LoadGlobal = 0x71,
 
         // Operaciones de definición de funciones (0x80-0x8F)
         Mark = 0x80,    // Marcar inicio de función
@@ -53,6 +51,5 @@
 
         // Control de ejecución (0xF0-0xFF)
         Halt = 0xFF,     // Detener la ejecución,
-       
     }
 }

@@ -98,8 +98,11 @@ namespace SimpleC.VM
         {
             OnDebugMessage("Initializing virtual machine...");
 
-            // Primer paso: escanear todo el bytecode para cargar variables globales y encontrar funciones
+            // Primer paso: escanear todo el bytecode para registrar variables globales y encontrar funciones
             ScanBytecode();
+
+            // Segundo paso: inicializar valores de variables globales
+            InitGlobalVariables();
 
             // Verificar si se encontró la función principal
             MainFound = FunctionTable.ContainsKey(MAIN_FUNCTION_NAME);
@@ -111,6 +114,76 @@ namespace SimpleC.VM
             else
             {
                 OnDebugMessage($"Main function found at position {FunctionTable[MAIN_FUNCTION_NAME]}");
+            }
+        }
+
+        /// <summary>
+        /// Inicializa los valores de las variables globales
+        /// </summary>
+        private void InitGlobalVariables()
+        {
+            int savedIp = Ip;
+            Ip = 0;
+
+            OnDebugMessage("Initializing global variables...");
+
+            try
+            {
+                // Ejecutar todas las instrucciones hasta encontrar la primera función (Mark)
+                while (Ip < Bytecode.Count)
+                {
+                    if (Ip < Bytecode.Count && Bytecode[Ip] == (byte)OpCode.Mark)
+                        break;
+
+                    byte opcode = Bytecode[Ip];
+                    CurrentOpcode = opcode;
+                    OnDebugMessage($"Global init - Executing opcode: {(OpCode)opcode} at position {Ip}");
+
+                    try
+                    {
+                        // Ejecutar las instrucciones para inicializar variables globales
+                        switch ((OpCode)opcode)
+                        {
+                            case OpCode.LoadC:
+                                LoadConstant.Execute();
+                                OnDebugMessage($"Loaded constant to stack, stack count: {Stack.Count}");
+                                if (Stack.Count > 0)
+                                    OnDebugMessage($"Stack top value: {Stack.Peek()}");
+                                break;
+
+                            case OpCode.StoreGlobal:
+                                StoreVariable.Execute();
+                                break;
+
+                            default:
+                                Ip++; // Avanzar para otros opcodes
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        OnDebugMessage($"Error executing opcode {(OpCode)opcode}: {ex.Message}");
+                        Ip++; // Avanzar para evitar bucle infinito
+                    }
+                }
+
+                // Información de diagnóstico: mostrar todas las variables globales y sus valores
+                OnDebugMessage("--- Global Variables after initialization ---");
+                foreach (var kvp in GlobalContext.Variables)
+                {
+                    OnDebugMessage($"Global: {kvp.Key} = {kvp.Value ?? "null"}");
+                }
+                OnDebugMessage("----------------------------------------");
+            }
+            catch (Exception ex)
+            {
+                OnDebugMessage($"Error in global variables initialization: {ex.Message}");
+            }
+            finally
+            {
+                // Limpiar la pila después de inicializar variables globales
+                Stack.Clear();
+                Ip = savedIp; // Restaurar posición
             }
         }
 
@@ -137,14 +210,17 @@ namespace SimpleC.VM
                             RegisterFunction.Execute();
                             break;
 
-                        case OpCode.Load:
-                            // Registrar variable global
-                            LoadVariable.Execute();
+                        case OpCode.LoadC:
+                            // Ignorar constantes durante el escaneo inicial
+                            SkipConstant();
                             break;
-                        case OpCode.Store:
-                            // Registrar variable global
-                            StoreVariable.Execute();
+
+                        case OpCode.LoadGlobal:
+                        case OpCode.StoreGlobal:
+                            // Registrar variables globales
+                            RegisterGlobalVar();
                             break;
+
                         default:
                             // Avanzar al siguiente byte
                             Ip++;
@@ -161,6 +237,79 @@ namespace SimpleC.VM
                 Ip = savedIp; // Restaurar posición
             }
         }
+
+        // Método para saltar constantes durante el escaneo
+        private void SkipConstant()
+        {
+            Ip++; // Saltar el opcode LoadC
+
+            if (Ip >= Bytecode.Count)
+                return;
+
+            byte constantType = Bytecode[Ip++]; // Leer el tipo
+
+            switch ((ConstantType)constantType)
+            {
+                case ConstantType.Integer:
+                case ConstantType.Float:
+                    Ip += 4; // Saltar 4 bytes (int o float)
+                    break;
+                case ConstantType.String:
+                    if (Ip < Bytecode.Count)
+                    {
+                        byte length = Bytecode[Ip++];
+                        Ip += length; // Saltar los bytes del string
+                    }
+                    break;
+                case ConstantType.Bool:
+                case ConstantType.Char:
+                    Ip += 1; // Saltar 1 byte (bool o char)
+                    break;
+                default:
+                    Ip++; // Saltar al menos un byte
+                    break;
+            }
+        }
+
+        // Método para registrar variables globales
+        private void RegisterGlobalVar()
+        {
+            byte opcode = Bytecode[Ip];
+            Ip++; // Avanzar después del opcode
+
+            // Si es StoreGlobal, leer el tipo de constante
+            if (opcode == (byte)OpCode.StoreGlobal)
+            {
+                if (Ip < Bytecode.Count)
+                    Ip++; // Saltar el byte del tipo
+            }
+
+            // Leer nombre de variable
+            if (Ip < Bytecode.Count)
+            {
+                byte nameLength = Bytecode[Ip++];
+
+                if (Ip + nameLength <= Bytecode.Count)
+                {
+                    // Leer bytes del nombre
+                    byte[] nameBytes = new byte[nameLength];
+                    for (int i = 0; i < nameLength; i++)
+                    {
+                        nameBytes[i] = Bytecode[Ip++];
+                    }
+
+                    string varName = System.Text.Encoding.UTF8.GetString(nameBytes);
+
+                    // Registrar la variable global
+                    if (!GlobalContext.Variables.ContainsKey(varName))
+                    {
+                        GlobalContext.Variables[varName] = null;
+                        OnDebugMessage($"Registered global variable: {varName}");
+                    }
+                }
+            }
+        }
+
 
         /// <summary>
         /// Devuelve un valor predeterminado para un tipo dado
@@ -259,7 +408,15 @@ namespace SimpleC.VM
                             LoadVariable.Execute();
                             break;
 
+                        case OpCode.LoadGlobal: // Cargar variable global
+                            LoadVariable.Execute();
+                            break;
+
                         case OpCode.Store: // 0x12 - Almacenar variable
+                            StoreVariable.Execute();
+                            break;
+
+                        case OpCode.StoreGlobal: // Almacenar variable global
                             StoreVariable.Execute();
                             break;
 
@@ -297,7 +454,7 @@ namespace SimpleC.VM
 
                         default:
                             ReportError($"Unknown opcode: {opcode} (0x{opcode:X2}) at position {Ip}");
- 
+
                             break;
                     }
                 }
