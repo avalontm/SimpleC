@@ -2,6 +2,7 @@
 using SimpleC.Types.Tokens;
 using SimpleC.Utils;
 using SimpleC.VM;
+using System.Diagnostics;
 
 namespace SimpleC.Types.AstNodes
 {
@@ -141,6 +142,7 @@ namespace SimpleC.Types.AstNodes
                 if (Parameters[i] is KeywordToken keywordToken && keywordToken.IsTypeKeyword)
                     paramCount++;
             }
+
             byteCode.Add((byte)paramCount);
 
             // Process parameter definitions

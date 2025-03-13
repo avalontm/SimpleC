@@ -13,16 +13,20 @@ namespace SimpleC.Types.AstNodes
         public Token Identifier { get; }
         public List<Token> Operators { get; }
         public List<Token> Values { get; private set; }
-        public bool IsDeclaration { get; private set; }
+        public bool IsGlobal { get; private set; } // Indica si es global
 
+        // Constructor para declaración de variable
         public VariableNode(VariableType type, Token identifier, List<Token> operators, List<Token> tokens)
         {
             this.Register(identifier.Content, type);
 
             Type = type;
             Identifier = identifier;
-            IsDeclaration = true; // By default, this is a declaration
-            Debug.WriteLine($"VariableNode: {identifier.Content}");
+
+            // Determinar si es global o local
+            // Una variable es global si estamos en el ámbito global (fuera de cualquier función)
+            IsGlobal = ParserGlobal.IsGlobalScope();
+            Debug.WriteLine($"IsGlobal: {Identifier.Content} | {IsGlobal}");
             NameAst = $"Variable: {identifier.Content} {string.Join("", operators.Select(x => x.Content))} {string.Join(" ", tokens.Select(x => x.Content))}";
             Values = new List<Token>();
 
@@ -87,7 +91,6 @@ namespace SimpleC.Types.AstNodes
         public VariableNode(Token identifier)
         {
             Identifier = identifier;
-            IsDeclaration = false;
             NameAst = $"VariableUsage: {identifier.Content}";
             Values = new List<Token>();
             Operators = new List<Token>();
@@ -99,6 +102,7 @@ namespace SimpleC.Types.AstNodes
                 if (variable != null)
                 {
                     Type = variable.Type;
+                    IsGlobal = variable.IsGlobal; // Hereda el estado global/local de la declaración
                 }
                 else
                 {
@@ -237,9 +241,12 @@ namespace SimpleC.Types.AstNodes
                 values.Add(ColorParser.GetTokenColor(value));
             }
 
-            if (IsDeclaration)
+            bool isDeclaration = Type != null;
+
+            if (isDeclaration)
             {
-                ColorParser.WriteLine($"{Indentation}[color=blue]{Type.ToLowerString()}[/color] [color=cyan]{Identifier.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
+                string scopeIndicator = IsGlobal ? "[color=purple](global)[/color] " : "[color=green](local)[/color] ";
+                ColorParser.WriteLine($"{Indentation}{scopeIndicator}[color=blue]{Type.ToLowerString()}[/color] [color=cyan]{Identifier.Content}[/color] [color=white]{string.Join(" ", Operators.Select(x => x.Content))}[/color] {string.Join(" ", values)}");
             }
             else
             {
@@ -251,220 +258,298 @@ namespace SimpleC.Types.AstNodes
         {
             List<byte> byteCode = new List<byte>();
 
-            if (IsDeclaration)
-            {
-                // If variable has operators and values, process them to generate opcodes
-                if (Operators.Count > 0 && Values.Count > 0)
-                {
-                    // First load the values to the stack
-                    byteCode.AddRange(GenerateExpressionByteCode());
+            // Registrar la variable
+            byteCode.AddRange(GenerateVariableByteCode());
 
-                    // Then store them in the variable
-                    byteCode.AddRange(GenerateStoreByteCode());
-                }
-                else
-                {
-                    // Just a declaration, push default value onto stack based on type
-                    byteCode.AddRange(GenerateDefaultValueByteCode());
-
-                    // Then store it in the variable
-                    byteCode.AddRange(GenerateStoreByteCode());
-                }
-            }
-            else
-            {
-                // Variable usage - load the variable's value onto stack
-                byteCode.AddRange(GenerateLoadByteCode());
-            }
+            // Generar código para la expresión usando la lista Values
+            byteCode.AddRange(GenerateExpressionByteCode());
 
             return byteCode;
         }
 
-        // Generate bytecode for loading default value based on type
-        private List<byte> GenerateDefaultValueByteCode()
-        {
-            List<byte> byteCode = new List<byte>();
-
-            // Push the appropriate default value for the type
-            byteCode.Add((byte)OpCode.LoadC); // Load constant
-
-            switch (Type)
-            {
-                case VariableType.Int:
-                    byteCode.Add((byte)ConstantType.Integer);
-                    byteCode.AddRange(BitConverter.GetBytes(0));
-                    break;
-
-                case VariableType.Float:
-                    byteCode.Add((byte)ConstantType.Float);
-                    byteCode.AddRange(BitConverter.GetBytes(0.0f));
-                    break;
-
-                case VariableType.Bool:
-                    byteCode.Add((byte)ConstantType.Bool);
-                    byteCode.Add(0); // false
-                    break;
-
-                case VariableType.Char:
-                    byteCode.Add((byte)ConstantType.Char);
-                    byteCode.Add((byte)'\0');
-                    break;
-
-                case VariableType.String:
-                    byteCode.Add((byte)ConstantType.String);
-                    byteCode.Add(0); // Empty string, length 0
-                    break;
-
-                default:
-                    throw new Exception($"Unsupported variable type: {Type}");
-            }
-
-            return byteCode;
-        }
-
-        // Generate bytecode for storing the top of stack in this variable
-        private List<byte> GenerateStoreByteCode()
-        {
-            List<byte> byteCode = new List<byte>();
-
-            // Opcode for Store
-            byteCode.Add((byte)OpCode.Store);
-
-            // Variable name as bytes
-            byte[] nameBytes = Encoding.UTF8.GetBytes(Identifier.Content);
-            byteCode.Add((byte)nameBytes.Length); // Length of name
-            byteCode.AddRange(nameBytes); // The name itself
-
-            return byteCode;
-        }
-
-        // Generate bytecode for loading this variable onto the stack
-        private List<byte> GenerateLoadByteCode()
-        {
-            List<byte> byteCode = new List<byte>();
-
-            // Opcode for Load
-            byteCode.Add((byte)OpCode.Load);
-
-            // Variable name as bytes
-            byte[] nameBytes = Encoding.UTF8.GetBytes(Identifier.Content);
-            byteCode.Add((byte)nameBytes.Length); // Length of name
-            byteCode.AddRange(nameBytes); // The name itself
-
-            return byteCode;
-        }
-
-        // Generate bytecode for expressions/assignments
+        // Generar bytecode para expresiones/asignaciones
         private List<byte> GenerateExpressionByteCode()
         {
             List<byte> byteCode = new List<byte>();
 
-            // Simple case - single value
+            // Si no hay valores explícitos, usar un valor por defecto basado en el tipo
+            if (Values.Count == 0)
+            {
+                // Crear un token temporal con un valor por defecto según el tipo
+                Token defaultToken;
+                switch (Type)
+                {
+                    case VariableType.Int:
+                        defaultToken = new NumberLiteralToken("0", 0, 0);
+                        break;
+                    case VariableType.Float:
+                        defaultToken = new FloatLiteralToken("0.0", 0, 0);
+                        break;
+                    case VariableType.Bool:
+                        defaultToken = new BoolToken("false", 0, 0);
+                        break;
+                    case VariableType.Char:
+                        defaultToken = new CharLiteralToken("'\\0'", 0, 0);
+                        break;
+                    case VariableType.String:
+                        defaultToken = new StringToken("\"\"", 0, 0);
+                        break;
+                    default:
+                        throw new Exception($"Tipo de variable no soportado: {Type}");
+                }
+
+                byteCode.AddRange(GenerateValueByteCode(defaultToken));
+                return byteCode;
+            }
+
+            // Caso simple - un solo valor
             if (Values.Count == 1)
             {
                 byteCode.AddRange(GenerateValueByteCode(Values[0]));
                 return byteCode;
             }
 
-            // More complex expression
-            // For now, we'll implement just simple expressions (no precedence)
-            // In a real compiler, you'd build an expression tree and evaluate it
+            // Expresión con paréntesis - necesitamos manejarla como una subexpresión
+            if (Values.Count > 2 && Values[0] is OpenBraceToken && Values[0].Content == "(")
+            {
+                // Buscar el paréntesis de cierre correspondiente
+                int closeParenIndex = FindMatchingCloseBrace(Values, 0);
 
-            // First value
+                if (closeParenIndex > 0)
+                {
+                    // Extraer subexpresión dentro de los paréntesis
+                    List<Token> subExprTokens = new List<Token>();
+                    for (int i = 1; i < closeParenIndex; i++)
+                    {
+                        subExprTokens.Add(Values[i]);
+                    }
+
+                    // Crear una sublista temporal de operadores para esta subexpresión
+                    List<Token> subOperators = new List<Token>();
+                    foreach (var token in subExprTokens)
+                    {
+                        if (token is OperatorToken)
+                        {
+                            subOperators.Add(token);
+                        }
+                    }
+
+                    // Generar código para la subexpresión
+                    // Esta es una simplificación; para un manejo completo habría que 
+                    // implementar un evaluador de expresiones recursivo
+
+                    // Primer valor de la subexpresión
+                    if (subExprTokens.Count > 0 && !(subExprTokens[0] is OperatorToken))
+                    {
+                        byteCode.AddRange(GenerateValueByteCode(subExprTokens[0]));
+                    }
+
+                    // Operaciones en la subexpresión
+                    int opCount = 0;
+                    for (int i = 1; i < subExprTokens.Count; i++)
+                    {
+                        if (subExprTokens[i] is OperatorToken)
+                        {
+                            continue;  // El operador se procesa con el siguiente valor
+                        }
+
+                        // Generar valor
+                        byteCode.AddRange(GenerateValueByteCode(subExprTokens[i]));
+
+                        // Aplicar operador anterior si existe
+                        if (opCount < subOperators.Count)
+                        {
+                            switch (subOperators[opCount].Content)
+                            {
+                                case "+":
+                                    byteCode.Add((byte)OpCode.Add);
+                                    break;
+                                case "-":
+                                    byteCode.Add((byte)OpCode.Sub);
+                                    break;
+                                case "*":
+                                    byteCode.Add((byte)OpCode.Mul);
+                                    break;
+                                case "/":
+                                    byteCode.Add((byte)OpCode.Div);
+                                    break;
+                                default:
+                                    throw new Exception($"Operador no soportado: {subOperators[opCount].Content}");
+                            }
+                            opCount++;
+                        }
+                    }
+
+                    // Si hay más contenido después del paréntesis de cierre, procesarlo
+                    if (closeParenIndex < Values.Count - 1)
+                    {
+                        // Implementar manejo de operaciones adicionales después del paréntesis
+                        // Para simplificar, este código no maneja casos complejos como (5+5)*2
+                    }
+
+                    return byteCode;
+                }
+            }
+
+            // Expresión normal (sin paréntesis al inicio)
+            // Primer valor
             byteCode.AddRange(GenerateValueByteCode(Values[0]));
 
-            // Process operators and values
-            for (int i = 0; i < Operators.Count && i < Values.Count - 1; i++)
+            // Procesar operadores y valores subsiguientes
+            int operatorIndex = 0;
+            for (int i = 1; i < Values.Count; i++)
             {
-                // Next value
-                byteCode.AddRange(GenerateValueByteCode(Values[i + 1]));
-
-                // Apply operator
-                switch (Operators[i].Content)
+                // Saltarse operadores, se procesan junto con el siguiente valor
+                if (Values[i] is OperatorToken)
                 {
-                    case "+":
-                        byteCode.Add((byte)OpCode.Add);
-                        break;
-                    case "-":
-                        byteCode.Add((byte)OpCode.Sub);
-                        break;
-                    case "*":
-                        byteCode.Add((byte)OpCode.Mul);
-                        break;
-                    case "/":
-                        byteCode.Add((byte)OpCode.Div);
-                        break;
-                    // Add more operators as needed
-                    default:
-                        throw new Exception($"Unsupported operator: {Operators[i].Content}");
+                    continue;
+                }
+
+                // Generar código para el valor actual
+                byteCode.AddRange(GenerateValueByteCode(Values[i]));
+
+                // Aplicar el operador anterior si existe
+                if (operatorIndex < i && operatorIndex < Values.Count && Values[operatorIndex] is OperatorToken)
+                {
+                    switch (Values[operatorIndex].Content)
+                    {
+                        case "+":
+                            byteCode.Add((byte)OpCode.Add);
+                            break;
+                        case "-":
+                            byteCode.Add((byte)OpCode.Sub);
+                            break;
+                        case "*":
+                            byteCode.Add((byte)OpCode.Mul);
+                            break;
+                        case "/":
+                            byteCode.Add((byte)OpCode.Div);
+                            break;
+                        default:
+                            throw new Exception($"Operador no soportado: {Values[operatorIndex].Content}");
+                    }
+
+                    // Buscar el siguiente operador
+                    operatorIndex = i + 1;
+                    while (operatorIndex < Values.Count && !(Values[operatorIndex] is OperatorToken))
+                    {
+                        operatorIndex++;
+                    }
                 }
             }
 
             return byteCode;
         }
 
-        // Generate bytecode for a value (e.g., a literal or result of an operation)
+        // Método auxiliar para encontrar el paréntesis de cierre correspondiente
+        private int FindMatchingCloseBrace(List<Token> tokens, int openBraceIndex)
+        {
+            int depth = 1;
+
+            for (int i = openBraceIndex + 1; i < tokens.Count; i++)
+            {
+                if (tokens[i] is OpenBraceToken && tokens[i].Content == "(")
+                {
+                    depth++;
+                }
+                else if (tokens[i] is CloseBraceToken && tokens[i].Content == ")")
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return i;
+                    }
+                }
+            }
+
+            return -1; // No se encontró paréntesis de cierre correspondiente
+        }
+
         private List<byte> GenerateValueByteCode(Token value)
         {
             List<byte> byteCode = new List<byte>();
 
-            // Check if this is a variable reference
-            if (ParserGlobal.Verify(value.Content) && !(value is NumberLiteralToken || value is FloatLiteralToken
-                || value is StringToken || value is BoolToken || value is CharLiteralToken))
-            {
-                // Load the variable
-                byteCode.Add((byte)OpCode.Load);
-                byte[] varNameBytes = Encoding.UTF8.GetBytes(value.Content);
-                byteCode.Add((byte)varNameBytes.Length);
-                byteCode.AddRange(varNameBytes);
-                return byteCode;
-            }
 
-            // It's a literal value
-            byteCode.Add((byte)OpCode.LoadC); // Load constant
+            // Es un valor literal
+            byteCode.Add((byte)OpCode.Store);
 
             if (value is NumberLiteralToken)
             {
-                // Integer literal
+                // Literal entero
                 byteCode.Add((byte)ConstantType.Integer);
                 int intValue = int.Parse(value.Content);
                 byteCode.AddRange(BitConverter.GetBytes(intValue));
             }
             else if (value is FloatLiteralToken)
             {
-                // Float literal
+                // Literal float
                 byteCode.Add((byte)ConstantType.Float);
                 float floatValue = float.Parse(value.Content);
                 byteCode.AddRange(BitConverter.GetBytes(floatValue));
             }
             else if (value is StringToken)
             {
-                // String literal - trim the quotes
+                // Literal string - eliminar las comillas
                 byteCode.Add((byte)ConstantType.String);
                 string strValue = value.Content.Substring(1, value.Content.Length - 2);
                 byte[] strBytes = Encoding.UTF8.GetBytes(strValue);
-                byteCode.Add((byte)strBytes.Length);
-                byteCode.AddRange(strBytes);
+                byteCode.Add((byte)strBytes.Length);  // Primero almacenar la longitud
+                byteCode.AddRange(strBytes);          // Luego los datos de la cadena
+
             }
             else if (value is BoolToken)
             {
-                // Boolean literal
+                // Literal booleano
                 byteCode.Add((byte)ConstantType.Bool);
                 byteCode.Add((byte)(value.Content == "true" ? 1 : 0));
             }
             else if (value is CharLiteralToken)
             {
-                // Character literal - extract the char from between quotes
+                // Literal de carácter - extraer el char entre comillas
                 byteCode.Add((byte)ConstantType.Char);
                 char charValue = value.Content[1];
                 byteCode.Add((byte)charValue);
             }
             else
             {
-                throw new Exception($"Unsupported value type: {value.GetType().Name} for value {value.Content}");
+                throw new Exception($"Tipo de valor no soportado: {value.GetType().Name} para el valor {value.Content}");
             }
 
             return byteCode;
+        }
+
+        // Generar bytecode para variables globales
+        private List<byte> GenerateVariableByteCode()
+        {
+            List<byte> byteCode = new List<byte>();
+
+            byteCode.Add((byte)OpCode.Load);
+
+            // Tipo de variable
+            byteCode.Add((byte)ConvertVariableTypeToConstantType(Type));
+
+            // Nombre de la variable como bytes
+            byte[] nameBytes = Encoding.UTF8.GetBytes(Identifier.Content);
+            byteCode.Add((byte)nameBytes.Length); 
+            byteCode.AddRange(nameBytes); 
+
+            return byteCode;
+        }
+
+
+        // Convertir VariableType a ConstantType
+        private ConstantType ConvertVariableTypeToConstantType(VariableType type)
+        {
+            return type switch
+            {
+                VariableType.Int => ConstantType.Integer,
+                VariableType.Float => ConstantType.Float,
+                VariableType.String => ConstantType.String,
+                VariableType.Char => ConstantType.Char,
+                VariableType.Bool => ConstantType.Bool,
+                VariableType.Void => ConstantType.Void,
+                _ => throw new Exception($"Tipo de variable no soportado: {type}")
+            };
         }
     }
 }

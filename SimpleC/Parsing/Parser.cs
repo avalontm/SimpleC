@@ -3,7 +3,6 @@ using SimpleC.Types.AstNodes;
 using SimpleC.Types.Tokens;
 using SimpleC.Utils;
 using System.Diagnostics;
-using System.Text;
 
 namespace SimpleC.Parsing
 {
@@ -183,7 +182,7 @@ namespace SimpleC.Parsing
                         node = ParserGlobal.Get(identifierToken.Content);
                     }
 
-                    if(islocal)
+                    if (islocal)
                     {
                         var vartype = scopes.Peek().Get(identifierToken.Content);
                         ProcessVariableReference(new VariableNode(vartype.Value, identifierToken, new List<Token>(), new List<Token>()), identifierToken);
@@ -201,7 +200,7 @@ namespace SimpleC.Parsing
                     return;
                 }
 
-                if(IsCustom(identifierToken.Content))
+                if (IsCustom(identifierToken.Content))
                 {
                     // apra las funciones integradas (personalizadeas)
                     var methodCallNode = new MethodCallNode(DetermineReturnType(identifierToken.Content), identifierToken.Content, GetTokens());
@@ -269,7 +268,7 @@ namespace SimpleC.Parsing
                 tokens.Add(token);
             }
 
-            if (peek() is StatementSperatorToken && peek().Content == ";" )
+            if (peek() is StatementSperatorToken && peek().Content == ";")
             {
                 tokens.Add(peek());
             }
@@ -408,11 +407,11 @@ namespace SimpleC.Parsing
             scopes.Peek().AddStatement(statementNode);
             scopes.Push(statementNode);
 
-         
+
             if (peek() is OpenBraceToken && !eof() && peek().Content == "(")
             {
                 condition = ReadUntilMatchingParenthesis();
-         
+
             }
             else if (keyword.Content == "case")
             {
@@ -422,7 +421,7 @@ namespace SimpleC.Parsing
             {
                 condition = ReadUntilCaseColon();
             }
-            
+
             statementNode.SetCondition(condition);
         }
 
@@ -437,7 +436,7 @@ namespace SimpleC.Parsing
                 tokens.Add(token);   // Agregarlo a la lista de tokens
 
                 // Continuar hasta encontrar el ':' o un salto de línea
-            } while (!(token is  StatementSperatorToken && token.Content == ":") && !(eof() && token is not NewLineToken));
+            } while (!(token is StatementSperatorToken && token.Content == ":") && !(eof() && token is not NewLineToken));
 
             // Verificar que haya encontrado ':' antes del salto de línea
             if (!(token is StatementSperatorToken && token.Content == ":"))
@@ -498,7 +497,7 @@ namespace SimpleC.Parsing
 
             if (peek() is StatementSperatorToken && peek().Content == ";")
             {
-                arguments.Add(next());  
+                arguments.Add(next());
             }
 
             // Crear el nodo de llamada al método

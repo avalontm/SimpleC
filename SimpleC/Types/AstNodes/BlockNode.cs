@@ -84,7 +84,6 @@ namespace SimpleC.Types.AstNodes
         {
             List<byte> byteCode = new List<byte>();
 
-
             foreach (var node in this.SubNodes)
             {
                 byteCode.AddRange(node.ByteCode());
