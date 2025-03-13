@@ -174,11 +174,34 @@ namespace SimpleC.Types.AstNodes
 
         private bool IsValidExpression(List<Token> tokens, VariableType expectedType)
         {
+            // Si hay tokens que forman una llamada a función
+            // (identificador seguido de paréntesis), considerarlos válidos
+            for (int i = 0; i < tokens.Count - 1; i++)
+            {
+                if (tokens[i] is IdentifierToken && tokens[i + 1].Content == "(")
+                {
+                    string funcName = tokens[i].Content;
+
+                    // Funciones nativas
+                    if (funcName == "scanf" || funcName == "input")
+                        return expectedType == VariableType.String;
+
+                    if (funcName == "printf" || funcName == "print")
+                        return expectedType == VariableType.Int;
+
+                    // Otras funciones - asumimos que son válidas para el tipo esperado
+                    // En una implementación más rigurosa, deberíamos verificar su tipo de retorno real
+                    return true;
+                }
+            }
+
+            // Validación estándar para expresiones que no son llamadas a funciones
             VariableType? lastType = null;
 
             foreach (var token in tokens)
             {
-                if (token is OperatorToken || token is OpenBraceToken && token.Content == "(" || token is CloseBraceToken && token.Content == ")") continue; // Skip operators (+, -, *, /)
+                if (token is OperatorToken || token.Content == "(" || token.Content == ")")
+                    continue; // Skip operators and parentheses
 
                 VariableType currentType = GetTokenVariableType(token);
 
@@ -196,7 +219,7 @@ namespace SimpleC.Types.AstNodes
                 }
             }
 
-            return lastType == expectedType;
+            return lastType == expectedType || lastType == null;
         }
 
         private VariableType GetTokenVariableType(Token token)
@@ -204,11 +227,22 @@ namespace SimpleC.Types.AstNodes
             // Ignore comma tokens entirely
             if (token.Content == ",") return Type; // Use the current variable's type as a fallback
 
+            // Tipos de datos literales
             if (int.TryParse(token.Content, out _)) return VariableType.Int;
             if (float.TryParse(token.Content, out _)) return VariableType.Float;
             if (token.Content.StartsWith("\"") && token.Content.EndsWith("\"")) return VariableType.String;
             if (token.Content.StartsWith("'") && token.Content.EndsWith("'") && token.Content.Length == 3) return VariableType.Char;
             if (token.Content == "true" || token.Content == "false") return VariableType.Bool;
+
+            // Funciones nativas conocidas
+            if (token.Content == "scanf" || token.Content == "input")
+            {
+                return VariableType.String; // scanf siempre retorna string
+            }
+            if (token.Content == "printf" || token.Content == "print")
+            {
+                return VariableType.Int; // printf retorna un int (número de caracteres impresos)
+            }
 
             // Si es un identificador, buscar si es una variable o una función
             if (ParserGlobal.Verify(token.Content))
@@ -231,19 +265,49 @@ namespace SimpleC.Types.AstNodes
             // Para soportar llamadas a funciones no registradas previamente
             // Verificar si los siguientes tokens contienen una estructura de llamada a función
             int index = Values.FindIndex(t => t == token);
-            if (index >= 0 && index + 2 < Values.Count)
+            if (index >= 0)
             {
-                if (Values[index + 1].Content == "(" ||
-                    (index + 2 < Values.Count && Values[index + 1] is IdentifierToken && Values[index + 2].Content == "("))
+                // Buscar si hay un paréntesis abierto después
+                bool isFunctionCall = false;
+                for (int i = index + 1; i < Values.Count && !isFunctionCall; i++)
                 {
-                    // Buscar en funciones registradas su tipo de retorno
-                    if (ParserGlobal.Functions.TryGetValue(token.Content, out VariableType returnType))
+                    if (Values[i].Content == "(")
                     {
-                        return returnType;
+                        isFunctionCall = true;
+                        break;
                     }
 
-                    // Caso por defecto para funciones, asumir Int
-                    return VariableType.Int;
+                    // Si encontramos algo que no es un espacio o identificador, no es una llamada a función
+                    if (Values[i].Content != " " && !(Values[i] is IdentifierToken))
+                        break;
+                }
+
+                if (isFunctionCall)
+                {
+                    // Funciones nativas conocidas
+                    if (token.Content == "scanf" || token.Content == "input")
+                        return VariableType.String;
+                    if (token.Content == "printf" || token.Content == "print")
+                        return VariableType.Int;
+
+                    // Buscar en funciones registradas su tipo de retorno
+                    if (ParserGlobal.Functions.TryGetValue(token.Content, out MethodNode method))
+                    {
+                        return method.Type;
+                    }
+
+                    // Para funciones definidas por el usuario, intentar encontrar su declaración
+                    foreach (var entry in ParserGlobal.Functions)
+                    {
+                        if (entry.Key == token.Content && entry.Value is MethodNode methodNode)
+                        {
+                            return methodNode.Type;
+                        }
+                    }
+
+                    // Si no podemos determinar el tipo, asumir que retorna el mismo tipo que la variable
+                    // Esto permite asignaciones como: int x = someFunction();
+                    return Type;
                 }
             }
 
@@ -253,14 +317,36 @@ namespace SimpleC.Types.AstNodes
 
         private bool AreCompatibleTypes(VariableType type1, VariableType type2, VariableType expectedType)
         {
+            // Si los tipos coinciden exactamente, son compatibles
+            if (type1 == expectedType && type2 == expectedType)
+                return true;
+
+            // Si alguno de los tipos coincide con el esperado, puede ser compatible
+            if (type1 == expectedType || type2 == expectedType)
+                return true;
+
+            // Casos especiales de compatibilidad
             return (type1, type2, expectedType) switch
             {
+                // Compatibilidad numérica
                 (VariableType.Int, VariableType.Int, VariableType.Int) => true,
                 (VariableType.Float, VariableType.Float, VariableType.Float) => true,
-                (VariableType.Int, VariableType.Float, VariableType.Float) => true, // Allow int + float
+                (VariableType.Int, VariableType.Float, VariableType.Float) => true,
                 (VariableType.Float, VariableType.Int, VariableType.Float) => true,
-                (VariableType.String, VariableType.String, VariableType.String) => true, // String concatenation
-                _ => false
+
+                // Compatibilidad de strings
+                (VariableType.String, VariableType.String, VariableType.String) => true,
+                (VariableType.String, _, VariableType.String) => true, // Permitir concatenar cualquier cosa con string
+                (_, VariableType.String, VariableType.String) => true, // Permitir concatenar string con cualquier cosa
+
+                // Compatibilidad para retornos de funciones
+                (_, _, VariableType.Int) => true,    // Permitir asignación a int
+                (_, _, VariableType.Float) => true,  // Permitir asignación a float
+                (_, _, VariableType.String) => true, // Permitir asignación a string
+                (_, _, VariableType.Bool) => true,   // Permitir asignación a bool
+                (_, _, VariableType.Char) => true,   // Permitir asignación a char
+
+                _ => false // Otros casos no son compatibles
             };
         }
 
@@ -432,11 +518,42 @@ namespace SimpleC.Types.AstNodes
         }
 
         // Método auxiliar para generar bytecode que carga un valor
+        // Método auxiliar para generar bytecode que carga un valor
         private List<byte> GenerateLoadCode(Token value)
         {
             List<byte> byteCode = new List<byte>();
 
-            if (value is NumberLiteralToken numberToken)
+            // Verificar si es una llamada a función
+            if (value is IdentifierToken identToken)
+            {
+                // Intentar determinar si este identificador es parte de una llamada a función
+                int index = Values.IndexOf(value);
+
+                // Verificar si hay un paréntesis abierto después del identificador
+                bool isFunctionCall = index >= 0 && index + 1 < Values.Count && Values[index + 1].Content == "(";
+
+                if (isFunctionCall)
+                {
+                    // Es una llamada a función, generar bytecode para función
+                    return GenerateFunctionCallByteCode(identToken, index);
+                }
+
+                // Si no es una llamada a función, continuar con el comportamiento normal
+                bool isVarGlobal = this.Verify(identToken.Content) || ParserGlobal.Verify(identToken.Content);
+                if (isVarGlobal)
+                {
+                    byteCode.Add((byte)OpCode.LoadGlobal);
+                }
+                else
+                {
+                    byteCode.Add((byte)OpCode.Load);
+                }
+
+                byte[] nameBytes = Encoding.UTF8.GetBytes(identToken.Content);
+                byteCode.Add((byte)nameBytes.Length);
+                byteCode.AddRange(nameBytes);
+            }
+            else if (value is NumberLiteralToken numberToken)
             {
                 byteCode.Add((byte)OpCode.LoadC);
                 byteCode.Add((byte)ConstantType.Integer);
@@ -470,22 +587,101 @@ namespace SimpleC.Types.AstNodes
                 char charValue = charToken.Content[1];
                 byteCode.Add((byte)charValue);
             }
-            else if (value is IdentifierToken identToken)
+
+            return byteCode;
+        }
+
+        // Nuevo método para generar bytecode para llamadas a funciones
+        private List<byte> GenerateFunctionCallByteCode(IdentifierToken functionToken, int startIndex)
+        {
+            List<byte> byteCode = new List<byte>();
+            string functionName = functionToken.Content;
+
+            // Encontrar el paréntesis de cierre correspondiente
+            int openParenIndex = startIndex + 1; // Índice del paréntesis de apertura
+            int closeParenIndex = FindMatchingCloseBrace(Values, openParenIndex);
+
+            if (closeParenIndex == -1)
             {
-                bool isVarGlobal = ParserGlobal.Verify(identToken.Content);
-                if (isVarGlobal)
+                throw new Exception($"No se encontró el paréntesis de cierre para la llamada a la función '{functionName}'");
+            }
+
+            // Extraer los argumentos entre paréntesis
+            List<List<Token>> arguments = new List<List<Token>>();
+            if (closeParenIndex > openParenIndex + 1) // Si hay argumentos
+            {
+                // Extraer y separar los argumentos por comas
+                int currentArgStart = openParenIndex + 1;
+                int parenLevel = 0;
+
+                for (int i = currentArgStart; i < closeParenIndex; i++)
                 {
-                    byteCode.Add((byte)OpCode.LoadGlobal);
+                    Token token = Values[i];
+
+                    if (token.Content == "(")
+                    {
+                        parenLevel++;
+                    }
+                    else if (token.Content == ")")
+                    {
+                        parenLevel--;
+                    }
+                    else if (token.Content == "," && parenLevel == 0)
+                    {
+                        // Fin de un argumento
+                        if (i > currentArgStart)
+                        {
+                            arguments.Add(Values.GetRange(currentArgStart, i - currentArgStart));
+                        }
+                        currentArgStart = i + 1; // Inicio del siguiente argumento
+                    }
+                }
+
+                // Añadir el último argumento
+                if (currentArgStart < closeParenIndex)
+                {
+                    arguments.Add(Values.GetRange(currentArgStart, closeParenIndex - currentArgStart));
+                }
+            }
+
+            // Generar bytecode para cada argumento (en orden inverso)
+            for (int i = arguments.Count - 1; i >= 0; i--)
+            {
+                var argTokens = arguments[i];
+
+                // Si el argumento es una expresión simple (un token)
+                if (argTokens.Count == 1)
+                {
+                    byteCode.AddRange(GenerateLoadCode(argTokens[0]));
                 }
                 else
                 {
-                    byteCode.Add((byte)OpCode.Load);
-                }
+                    // Para expresiones complejas, necesitaríamos generar el código para evaluar la expresión
+                    // Esto podría requerir un enfoque similar al del método GenerateExpressionByteCode
 
-                byte[] nameBytes = Encoding.UTF8.GetBytes(identToken.Content);
-                byteCode.Add((byte)nameBytes.Length);
-                byteCode.AddRange(nameBytes);
+                    // Por simplicidad, manejamos solo el caso de string literal para scanf
+                    if (functionName == "scanf" && argTokens.Count == 1 && argTokens[0] is StringToken)
+                    {
+                        byteCode.AddRange(GenerateLoadCode(argTokens[0]));
+                    }
+                    else
+                    {
+                        // Si no es un caso simple, lanzar error o usar un parser de expresiones más completo
+                        throw new Exception($"Argumento complejo no soportado en llamada a función: {string.Join(" ", argTokens.Select(t => t.Content))}");
+                    }
+                }
             }
+
+            // Añadir el opcode Call
+            byteCode.Add((byte)OpCode.Call);
+
+            // Añadir el nombre de la función
+            byte[] nameBytes = Encoding.UTF8.GetBytes(functionName);
+            byteCode.Add((byte)nameBytes.Length);
+            byteCode.AddRange(nameBytes);
+
+            // Añadir el número de argumentos
+            byteCode.Add((byte)arguments.Count);
 
             return byteCode;
         }

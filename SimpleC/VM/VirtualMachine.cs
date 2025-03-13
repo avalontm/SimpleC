@@ -1,6 +1,7 @@
 ﻿using SimpleC.Utils;
 using SimpleC.VM.Instructions;
 using System.Diagnostics;
+using System.Text;
 
 namespace SimpleC.VM
 {
@@ -29,7 +30,7 @@ namespace SimpleC.VM
 
         // Constante para la función principal
         private const string MAIN_FUNCTION_NAME = "main";
-        public bool MainFound { get; private set; } = false;
+        public bool MainFound { get; set; } = false;
 
         // Opcode actual para operaciones que lo necesitan
         public byte CurrentOpcode { get; set; } = 0;
@@ -98,6 +99,9 @@ namespace SimpleC.VM
         {
             OnDebugMessage("Initializing virtual machine...");
 
+            // Registrar funciones nativas
+            RegisterBuiltInFunctions();
+
             // Primer paso: escanear todo el bytecode para registrar variables globales y encontrar funciones
             ScanBytecode();
 
@@ -115,6 +119,114 @@ namespace SimpleC.VM
             {
                 OnDebugMessage($"Main function found at position {FunctionTable[MAIN_FUNCTION_NAME]}");
             }
+
+            // Imprimir información de las funciones registradas para debugging
+            OnDebugMessage("--- Registered Functions ---");
+            foreach (var kvp in FunctionTable)
+            {
+                OnDebugMessage($"Function: {kvp.Key} at position {kvp.Value}");
+            }
+            OnDebugMessage("------------------------");
+        }
+
+        private void RegisterBuiltInFunctions()
+        {
+            // Registrar la función printf
+            if (!FunctionTable.ContainsKey("printf"))
+            {
+                FunctionTable["printf"] = -1; // -1 indica función nativa
+                OnDebugMessage("Registered built-in function: printf");
+            }
+
+            // Registrar la función print (alias de printf)
+            if (!FunctionTable.ContainsKey("print"))
+            {
+                FunctionTable["print"] = -1;
+                OnDebugMessage("Registered built-in function: print");
+            }
+
+            // Registrar la función scanf
+            if (!FunctionTable.ContainsKey("scanf"))
+            {
+                FunctionTable["scanf"] = -2; // -2 indica función nativa scanf
+                OnDebugMessage("Registered built-in function: scanf");
+            }
+
+            // Registrar la función input (alias de scanf)
+            if (!FunctionTable.ContainsKey("input"))
+            {
+                FunctionTable["input"] = -2;
+                OnDebugMessage("Registered built-in function: input");
+            }
+
+            // Aquí puedes registrar otras funciones nativas si es necesario
+        }
+
+        public void DebugBytecode()
+        {
+            Console.WriteLine("\n===== BYTECODE DEBUG =====");
+
+            for (int i = 0; i < Bytecode.Count; i++)
+            {
+                byte currentByte = Bytecode[i];
+
+                // Mostrar posición y valor en hexadecimal
+                Console.Write($"[{i:D4}] 0x{currentByte:X2}");
+
+                // Convertir byte a int antes de verificar si es un opcode válido
+                int opcodeValue = currentByte;
+                if (currentByte.IsValidOpCode())
+                {
+                    OpCode opcode = (OpCode)opcodeValue;
+                    Console.Write($" - {opcode}");
+
+                    // Para opcodes específicos, mostrar detalles adicionales
+                    if (opcode == OpCode.Mark)
+                    {
+                        Console.Write(" (Function definition)");
+
+                        // Intentar leer el nombre de la función
+                        if (i + 1 < Bytecode.Count)
+                        {
+                            byte nameLength = Bytecode[i + 1];
+                            if (i + 2 + nameLength <= Bytecode.Count)
+                            {
+                                byte[] nameBytes = new byte[nameLength];
+                                for (int j = 0; j < nameLength; j++)
+                                {
+                                    nameBytes[j] = Bytecode[i + 2 + j];
+                                }
+                                string funcName = System.Text.Encoding.UTF8.GetString(nameBytes);
+                                Console.Write($" - Function: '{funcName}'");
+                            }
+                        }
+                    }
+                    else if (opcode == OpCode.Call)
+                    {
+                        Console.Write(" (Function call)");
+
+                        // Intentar leer el nombre de la función llamada
+                        if (i + 1 < Bytecode.Count)
+                        {
+                            byte nameLength = Bytecode[i + 1];
+                            if (i + 2 + nameLength <= Bytecode.Count)
+                            {
+                                byte[] nameBytes = new byte[nameLength];
+                                for (int j = 0; j < nameLength; j++)
+                                {
+                                    nameBytes[j] = Bytecode[i + 2 + j];
+                                }
+                                string funcName = System.Text.Encoding.UTF8.GetString(nameBytes);
+                                Console.Write($" - Calling: '{funcName}'");
+                            }
+                        }
+                    }
+                }
+
+                Console.WriteLine();
+            }
+
+            Console.WriteLine("=========================\n");
         }
 
         /// <summary>
@@ -199,117 +311,63 @@ namespace SimpleC.VM
             {
                 while (Ip < Bytecode.Count)
                 {
+                    if (Ip >= Bytecode.Count) break;
+
                     byte opcode = Bytecode[Ip];
                     OpCode operation = (OpCode)opcode;
-                    Debug.WriteLine($"ScanBytecode: {operation}");
 
-                    switch (operation)
+                    if (operation == OpCode.Mark)
                     {
-                        case OpCode.Mark:
-                            // Encontrado el inicio de una función
-                            RegisterFunction.Execute();
-                            break;
+                        // Guardar la posición del Mark
+                        int markPosition = Ip;
 
-                        case OpCode.LoadC:
-                            // Ignorar constantes durante el escaneo inicial
-                            SkipConstant();
-                            break;
+                        // Avanzar después del Mark
+                        Ip++;
 
-                        case OpCode.LoadGlobal:
-                        case OpCode.StoreGlobal:
-                            // Registrar variables globales
-                            RegisterGlobalVar();
-                            break;
+                        // Leer longitud del nombre
+                        if (Ip >= Bytecode.Count) break;
+                        byte nameLength = Bytecode[Ip++];
 
-                        default:
-                            // Avanzar al siguiente byte
-                            Ip++;
-                            break;
+                        if (nameLength > 0 && Ip + nameLength <= Bytecode.Count)
+                        {
+                            // Leer el nombre de la función
+                            byte[] nameBytes = new byte[nameLength];
+                            for (int i = 0; i < nameLength; i++)
+                            {
+                                nameBytes[i] = Bytecode[Ip + i];
+                            }
+                            string functionName = Encoding.UTF8.GetString(nameBytes);
+
+                            // Registrar la función
+                            OnDebugMessage($"Registering function: {functionName} at position {markPosition}");
+                            FunctionTable[functionName] = markPosition;
+
+                            // Especialmente si es main, marcar que la encontramos
+                            if (functionName == MAIN_FUNCTION_NAME)
+                            {
+                                MainFound = true;
+                                OnDebugMessage("Main function found!");
+                            }
+                        }
+
+                        // Avanzar después del nombre
+                        Ip += nameLength;
                     }
+
+                    // Avanzar al siguiente byte
+                    Ip++;
                 }
             }
             catch (Exception ex)
             {
-                ReportError($"Error scanning bytecode: {ex.Message}", false);
+                OnDebugMessage($"Error in ScanBytecode: {ex.Message}");
             }
             finally
             {
-                Ip = savedIp; // Restaurar posición
+                // Restaurar la posición original
+                Ip = savedIp;
             }
         }
-
-        // Método para saltar constantes durante el escaneo
-        private void SkipConstant()
-        {
-            Ip++; // Saltar el opcode LoadC
-
-            if (Ip >= Bytecode.Count)
-                return;
-
-            byte constantType = Bytecode[Ip++]; // Leer el tipo
-
-            switch ((ConstantType)constantType)
-            {
-                case ConstantType.Integer:
-                case ConstantType.Float:
-                    Ip += 4; // Saltar 4 bytes (int o float)
-                    break;
-                case ConstantType.String:
-                    if (Ip < Bytecode.Count)
-                    {
-                        byte length = Bytecode[Ip++];
-                        Ip += length; // Saltar los bytes del string
-                    }
-                    break;
-                case ConstantType.Bool:
-                case ConstantType.Char:
-                    Ip += 1; // Saltar 1 byte (bool o char)
-                    break;
-                default:
-                    Ip++; // Saltar al menos un byte
-                    break;
-            }
-        }
-
-        // Método para registrar variables globales
-        private void RegisterGlobalVar()
-        {
-            byte opcode = Bytecode[Ip];
-            Ip++; // Avanzar después del opcode
-
-            // Si es StoreGlobal, leer el tipo de constante
-            if (opcode == (byte)OpCode.StoreGlobal)
-            {
-                if (Ip < Bytecode.Count)
-                    Ip++; // Saltar el byte del tipo
-            }
-
-            // Leer nombre de variable
-            if (Ip < Bytecode.Count)
-            {
-                byte nameLength = Bytecode[Ip++];
-
-                if (Ip + nameLength <= Bytecode.Count)
-                {
-                    // Leer bytes del nombre
-                    byte[] nameBytes = new byte[nameLength];
-                    for (int i = 0; i < nameLength; i++)
-                    {
-                        nameBytes[i] = Bytecode[Ip++];
-                    }
-
-                    string varName = System.Text.Encoding.UTF8.GetString(nameBytes);
-
-                    // Registrar la variable global
-                    if (!GlobalContext.Variables.ContainsKey(varName))
-                    {
-                        GlobalContext.Variables[varName] = null;
-                        OnDebugMessage($"Registered global variable: {varName}");
-                    }
-                }
-            }
-        }
-
 
         /// <summary>
         /// Devuelve un valor predeterminado para un tipo dado
@@ -333,10 +391,41 @@ namespace SimpleC.VM
         /// <summary>
         /// Inicia la ejecución del programa
         /// </summary>
+        // Modificar el método Run() en VirtualMachine.cs
         public void Run()
         {
             try
             {
+                // Forzar a buscar main explícitamente
+                if (!MainFound)
+                {
+                    // Buscar explícitamente en el bytecode
+                    for (int i = 0; i < Bytecode.Count - 4; i++)
+                    {
+                        if ((OpCode)Bytecode[i] == OpCode.Mark &&
+                            i + 1 < Bytecode.Count &&
+                            Bytecode[i + 1] == 4 && // Longitud del nombre "main"
+                            i + 5 < Bytecode.Count)
+                        {
+                            // Verificar si es "main"
+                            byte[] nameBytes = new byte[4];
+                            for (int j = 0; j < 4; j++)
+                            {
+                                nameBytes[j] = Bytecode[i + 2 + j];
+                            }
+                            string name = Encoding.UTF8.GetString(nameBytes);
+
+                            if (name == "main")
+                            {
+                                MainFound = true;
+                                FunctionTable["main"] = i;
+                                OnDebugMessage($"Forced main function detection at position {i}");
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 if (!MainFound)
                 {
                     ReportError("Execution halted: main function not found", false);
@@ -357,7 +446,7 @@ namespace SimpleC.VM
 #if DEBUG
                 ColorParser.WriteLine($"[color=red]Execution error: {ex}[/color]");
 #else
-                ColorParser.WriteLine($"[color=red]Execution error: {ex.Message}[/color]");
+        ColorParser.WriteLine($"[color=red]Execution error: {ex.Message}[/color]");
 #endif
             }
         }

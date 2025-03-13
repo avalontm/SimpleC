@@ -36,8 +36,8 @@ namespace SimpleC.VM.Instructions
                 return;
             }
 
-            // Obtener el valor de la pila
-            object value = vm.Stack.Pop();
+            // Duplicar el valor en la pila antes de usarlo
+            object value = vm.Stack.Peek(); // Solo mirar el valor sin sacarlo de la pila
 
             // Almacenar el valor en el contexto apropiado
             if (isGlobal)
@@ -54,6 +54,11 @@ namespace SimpleC.VM.Instructions
                 // Añadir un mensaje detallado de depuración
                 vm.OnDebugMessage($"Store: '{varName}' = '{value}' (type: {value?.GetType().Name ?? "null"})");
             }
+
+            // NOTA: No hacemos Pop() para mantener el valor en la pila
+            // vm.Stack.Pop(); // Comentado para no eliminar el valor
+
+            vm.OnDebugMessage($"Value '{value}' stored in '{varName}' and kept on stack");
         }
 
         /// <summary>

@@ -1,47 +1,43 @@
-﻿namespace SimpleC.VM.Instructions
+﻿using System.Diagnostics;
+
+namespace SimpleC.VM.Instructions
 {
     /// <summary>
     /// Implementa la instrucción para retornar de una función
     /// </summary>
     public static class ProcessReturn
     {
-        /// <summary>
-        /// Ejecuta la instrucción Return que retorna de una función
-        /// </summary>
         public static void Execute()
         {
             var vm = VirtualMachine.Instance;
+            if (vm == null) return;
+
+            // Avanzar después del opcode Return
+            vm.Ip++;
 
             // Verificar si tenemos un valor para retornar
             object returnValue = null;
             if (vm.Stack.Count > 0)
             {
-                returnValue = vm.Stack.Peek(); // Mantener valor de retorno en la pila
-                vm.OnDebugMessage($"Returning value: {returnValue}");
+                returnValue = vm.Stack.Peek(); // IMPORTANTE: Solo mirar el valor, no sacarlo de la pila
             }
+
 
             if (vm.CallStack.Count > 0)
             {
-                // Eliminar contexto de variables locales para esta función
+                // Eliminar contexto local
                 if (vm.LocalContexts.Count > 0)
                 {
-                    var removedContext = vm.LocalContexts.Pop();
-                    vm.OnDebugMessage($"Context '{removedContext.Name}' removed with {removedContext.Variables.Count} variables");
+                    vm.LocalContexts.Pop();
                 }
 
-                // Obtener dirección de retorno de la pila de llamadas
+                // Obtener dirección de retorno
                 int returnAddress = vm.CallStack.Pop();
-                vm.OnDebugMessage($"Return: Going back to address {returnAddress}");
 
-                // Restaurar puntero de instrucción a dirección de retorno
+                // Restaurar posición
                 vm.Ip = returnAddress;
             }
-            else
-            {
-                // Si no hay direcciones de retorno, probablemente estamos en la función principal
-                vm.OnDebugMessage("Return: No return address (possibly in main function)");
-                vm.Ip++;
-            }
+
         }
     }
 }

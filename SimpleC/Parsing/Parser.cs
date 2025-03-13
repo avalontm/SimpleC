@@ -228,6 +228,8 @@ namespace SimpleC.Parsing
             {
                 case "printf": return true;
                 case "scanf": return true;
+                case "print": return true;
+                case "inut": return true;
                 default: return false;
             }
         }
@@ -668,7 +670,6 @@ namespace SimpleC.Parsing
 
         void ProcessKeyword(VariableType varType, Token name)
         {
-
             if (name == null)
             {
                 throw new ParsingException($"Identificador de nombre esperado para el tipo {varType}");
@@ -681,6 +682,9 @@ namespace SimpleC.Parsing
 
                 // Create method node
                 var methodNode = new MethodNode(varType, name.Content, parameters);
+
+                // IMPORTANTE: Registrar el método en el ámbito global
+                ParserGlobal.Register(name.Content, methodNode);
 
                 // Add method to current scope
                 scopes.Peek().AddStatement(methodNode);
@@ -713,7 +717,6 @@ namespace SimpleC.Parsing
                     operatorTokens.Add(next());
                 }
 
-
                 // Determinar si la variable es global (según el contador de paréntesis)
                 bool isGlobalVar = bracketCounter.Count == 0;
 
@@ -722,7 +725,6 @@ namespace SimpleC.Parsing
 
                 // Agregar el nodo al alcance actual
                 scopes.Peek().AddStatement(variableNode);
-
             }
         }
 

@@ -1,19 +1,75 @@
-﻿using SimpleC.Types.Tokens;
+﻿using SimpleC.Types.AstNodes;
+using SimpleC.Types.Tokens;
 using SimpleC.Utils;
+using System.Diagnostics;
 
 namespace SimpleC.Types
 {
     public abstract class AstNode
     {
+        public MethodNode? Owner { get; internal set; }
         public string NameAst { get; internal set; }
         public string Indentation { get; private set; }
         public int Indent { set; get; } = 0;
+
+        private List<ParameterNode> Parameters = new List<ParameterNode>();
+
+        private Dictionary<string, VariableType> LocalVariables { get; } = new();
+
+        public void Register(string name, VariableType type)
+        {
+            if (LocalVariables.ContainsKey(name))
+            {
+                throw new Exception($"La Variable '{name}' ({type}) ya se ha registrado.");
+            }
+            LocalVariables[name] = type;
+            Debug.WriteLine($"Variable local registrada: {name} ({type})");
+        }
+
+
+        public bool Verify(string name)
+        {
+            return LocalVariables.ContainsKey(name);
+        }
+
+        public VariableType? Get(string key)
+        {
+            if (!Verify(key))
+            {
+                return null;
+            }
+            return LocalVariables[key];
+        }
+
+        public VariableType? GetType(string name)
+        {
+            if (LocalVariables.TryGetValue(name, out var type))
+            {
+                return type;
+            }
+            return null;
+        }
 
         public AstNode()
         {
             Indentation = string.Empty;
         }
 
+        public void SetParameters(MethodNode owner, List<ParameterNode> parameters)
+        {
+            Owner = owner;
+            Parameters = parameters;
+
+            foreach (var parameter in parameters)
+            {
+                this.Register(parameter.Value, parameter.Type);
+            }
+        }
+
+        public List<ParameterNode> GetParameters()
+        {
+            return Parameters;
+        }
         public void SetIndent(string indent)
         {
             Indentation = indent;
@@ -54,6 +110,11 @@ namespace SimpleC.Types
             }
 
             ColorParser.WriteLine($"{string.Join(" ", values)}");
+        }
+
+        public void SetOwner(MethodNode? owner)
+        {
+            this.Owner = owner;
         }
     }
 }
