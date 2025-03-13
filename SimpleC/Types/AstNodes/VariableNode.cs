@@ -265,151 +265,44 @@ namespace SimpleC.Types.AstNodes
             return byteCode;
         }
 
-        // Generar bytecode para expresiones/asignaciones
+
         private List<byte> GenerateExpressionByteCode()
         {
             List<byte> byteCode = new List<byte>();
 
-            // Si no hay valores explícitos, usar un valor por defecto basado en el tipo
+            // Casos simples
             if (Values.Count == 0)
             {
-                // Crear un token temporal con un valor por defecto según el tipo
-                Token defaultToken;
-                switch (Type)
-                {
-                    case VariableType.Int:
-                        defaultToken = new NumberLiteralToken("0", 0, 0);
-                        break;
-                    case VariableType.Float:
-                        defaultToken = new FloatLiteralToken("0.0", 0, 0);
-                        break;
-                    case VariableType.Bool:
-                        defaultToken = new BoolToken("false", 0, 0);
-                        break;
-                    case VariableType.Char:
-                        defaultToken = new CharLiteralToken("'\\0'", 0, 0);
-                        break;
-                    case VariableType.String:
-                        defaultToken = new StringToken("\"\"", 0, 0);
-                        break;
-                    default:
-                        throw new Exception($"Tipo de variable no soportado: {Type}");
-                }
-
-                byteCode.AddRange(GenerateValueByteCode(defaultToken));
+                Token defaultToken = CreateDefaultToken();
+                byteCode.AddRange(GenerateLoadCode(defaultToken));
+                byteCode.AddRange(GenerateStoreCode());
                 return byteCode;
             }
 
-            // Caso simple - un solo valor
             if (Values.Count == 1)
             {
-                byteCode.AddRange(GenerateValueByteCode(Values[0]));
+                byteCode.AddRange(GenerateLoadCode(Values[0]));
+                byteCode.AddRange(GenerateStoreCode());
                 return byteCode;
             }
 
-            // Expresión con paréntesis - necesitamos manejarla como una subexpresión
-            if (Values.Count > 2 && Values[0] is OpenBraceToken && Values[0].Content == "(")
+            // Convertir a notación postfija (RPN) usando Shunting Yard 
+            List<Token> output = ConvertToRPN(Values);
+
+            // Generar bytecode para cada token en notación postfija
+            foreach (Token token in output)
             {
-                // Buscar el paréntesis de cierre correspondiente
-                int closeParenIndex = FindMatchingCloseBrace(Values, 0);
-
-                if (closeParenIndex > 0)
+                if (token is IdentifierToken || token is NumberLiteralToken ||
+                    token is FloatLiteralToken || token is StringToken ||
+                    token is CharLiteralToken || token is BoolToken)
                 {
-                    // Extraer subexpresión dentro de los paréntesis
-                    List<Token> subExprTokens = new List<Token>();
-                    for (int i = 1; i < closeParenIndex; i++)
-                    {
-                        subExprTokens.Add(Values[i]);
-                    }
-
-                    // Crear una sublista temporal de operadores para esta subexpresión
-                    List<Token> subOperators = new List<Token>();
-                    foreach (var token in subExprTokens)
-                    {
-                        if (token is OperatorToken)
-                        {
-                            subOperators.Add(token);
-                        }
-                    }
-
-                    // Generar código para la subexpresión
-                    // Esta es una simplificación; para un manejo completo habría que 
-                    // implementar un evaluador de expresiones recursivo
-
-                    // Primer valor de la subexpresión
-                    if (subExprTokens.Count > 0 && !(subExprTokens[0] is OperatorToken))
-                    {
-                        byteCode.AddRange(GenerateValueByteCode(subExprTokens[0]));
-                    }
-
-                    // Operaciones en la subexpresión
-                    int opCount = 0;
-                    for (int i = 1; i < subExprTokens.Count; i++)
-                    {
-                        if (subExprTokens[i] is OperatorToken)
-                        {
-                            continue;  // El operador se procesa con el siguiente valor
-                        }
-
-                        // Generar valor
-                        byteCode.AddRange(GenerateValueByteCode(subExprTokens[i]));
-
-                        // Aplicar operador anterior si existe
-                        if (opCount < subOperators.Count)
-                        {
-                            switch (subOperators[opCount].Content)
-                            {
-                                case "+":
-                                    byteCode.Add((byte)OpCode.Add);
-                                    break;
-                                case "-":
-                                    byteCode.Add((byte)OpCode.Sub);
-                                    break;
-                                case "*":
-                                    byteCode.Add((byte)OpCode.Mul);
-                                    break;
-                                case "/":
-                                    byteCode.Add((byte)OpCode.Div);
-                                    break;
-                                default:
-                                    throw new Exception($"Operador no soportado: {subOperators[opCount].Content}");
-                            }
-                            opCount++;
-                        }
-                    }
-
-                    // Si hay más contenido después del paréntesis de cierre, procesarlo
-                    if (closeParenIndex < Values.Count - 1)
-                    {
-                        // Implementar manejo de operaciones adicionales después del paréntesis
-                        // Para simplificar, este código no maneja casos complejos como (5+5)*2
-                    }
-
-                    return byteCode;
+                    // Cargar valores a la pila
+                    byteCode.AddRange(GenerateLoadCode(token));
                 }
-            }
-
-            // Expresión normal (sin paréntesis al inicio)
-            // Primer valor
-            byteCode.AddRange(GenerateValueByteCode(Values[0]));
-
-            // Procesar operadores y valores subsiguientes
-            int operatorIndex = 0;
-            for (int i = 1; i < Values.Count; i++)
-            {
-                // Saltarse operadores, se procesan junto con el siguiente valor
-                if (Values[i] is OperatorToken)
+                else if (token is OperatorToken op)
                 {
-                    continue;
-                }
-
-                // Generar código para el valor actual
-                byteCode.AddRange(GenerateValueByteCode(Values[i]));
-
-                // Aplicar el operador anterior si existe
-                if (operatorIndex < i && operatorIndex < Values.Count && Values[operatorIndex] is OperatorToken)
-                {
-                    switch (Values[operatorIndex].Content)
+                    // Aplicar operador
+                    switch (op.Content)
                     {
                         case "+":
                             byteCode.Add((byte)OpCode.Add);
@@ -423,20 +316,186 @@ namespace SimpleC.Types.AstNodes
                         case "/":
                             byteCode.Add((byte)OpCode.Div);
                             break;
-                        default:
-                            throw new Exception($"Operador no soportado: {Values[operatorIndex].Content}");
-                    }
-
-                    // Buscar el siguiente operador
-                    operatorIndex = i + 1;
-                    while (operatorIndex < Values.Count && !(Values[operatorIndex] is OperatorToken))
-                    {
-                        operatorIndex++;
                     }
                 }
             }
 
+            // Store final result
+            byteCode.AddRange(GenerateStoreCode());
+
             return byteCode;
+        }
+
+        // Convierte de notación infija a notación postfija (RPN)
+        private List<Token> ConvertToRPN(List<Token> infixTokens)
+        {
+            List<Token> output = new List<Token>();
+            Stack<Token> operatorStack = new Stack<Token>();
+
+            foreach (Token token in infixTokens)
+            {
+                if (token is IdentifierToken || token is NumberLiteralToken ||
+                    token is FloatLiteralToken || token is StringToken ||
+                    token is CharLiteralToken || token is BoolToken)
+                {
+                    // Valores directos a la salida
+                    output.Add(token);
+                }
+                else if (token is OpenBraceToken)
+                {
+                    // Paréntesis de apertura a la pila
+                    operatorStack.Push(token);
+                }
+                else if (token is CloseBraceToken)
+                {
+                    // Procesar hasta encontrar el paréntesis de apertura correspondiente
+                    while (operatorStack.Count > 0 && !(operatorStack.Peek() is OpenBraceToken))
+                    {
+                        output.Add(operatorStack.Pop());
+                    }
+
+                    // Descartar el paréntesis de apertura
+                    if (operatorStack.Count > 0 && operatorStack.Peek() is OpenBraceToken)
+                    {
+                        operatorStack.Pop();
+                    }
+                }
+                else if (token is OperatorToken currentOp)
+                {
+                    // Para operadores, aplicar reglas de precedencia
+                    while (operatorStack.Count > 0 &&
+                           operatorStack.Peek() is OperatorToken stackOp &&
+                           GetPrecedence(stackOp) >= GetPrecedence(currentOp))
+                    {
+                        output.Add(operatorStack.Pop());
+                    }
+
+                    operatorStack.Push(token);
+                }
+            }
+
+            // Mover los operadores restantes a la salida
+            while (operatorStack.Count > 0)
+            {
+                output.Add(operatorStack.Pop());
+            }
+
+            return output;
+        }
+
+        // Obtener precedencia de operadores
+        private int GetPrecedence(OperatorToken op)
+        {
+            switch (op.Content)
+            {
+                case "+":
+                case "-":
+                    return 1;
+                case "*":
+                case "/":
+                    return 2;
+                default:
+                    return 0;
+            }
+        }
+
+        // Método auxiliar para generar bytecode que carga un valor
+        private List<byte> GenerateLoadCode(Token value)
+        {
+            List<byte> byteCode = new List<byte>();
+
+            if (value is NumberLiteralToken numberToken)
+            {
+                byteCode.Add((byte)OpCode.LoadC);
+                byteCode.Add((byte)ConstantType.Integer);
+                byteCode.AddRange(BitConverter.GetBytes(numberToken.Numero));
+            }
+            else if (value is FloatLiteralToken floatToken)
+            {
+                byteCode.Add((byte)OpCode.LoadC);
+                byteCode.Add((byte)ConstantType.Float);
+                byteCode.AddRange(BitConverter.GetBytes(floatToken.Numero));
+            }
+            else if (value is StringToken stringToken)
+            {
+                byteCode.Add((byte)OpCode.LoadC);
+                byteCode.Add((byte)ConstantType.String);
+                string strValue = stringToken.Content.Substring(1, stringToken.Content.Length - 2);
+                byte[] strBytes = Encoding.UTF8.GetBytes(strValue);
+                byteCode.Add((byte)strBytes.Length);
+                byteCode.AddRange(strBytes);
+            }
+            else if (value is BoolToken boolToken)
+            {
+                byteCode.Add((byte)OpCode.LoadC);
+                byteCode.Add((byte)ConstantType.Bool);
+                byteCode.Add((byte)(boolToken.Value ? 1 : 0));
+            }
+            else if (value is CharLiteralToken charToken)
+            {
+                byteCode.Add((byte)OpCode.LoadC);
+                byteCode.Add((byte)ConstantType.Char);
+                char charValue = charToken.Content[1];
+                byteCode.Add((byte)charValue);
+            }
+            else if (value is IdentifierToken identToken)
+            {
+                bool isVarGlobal = ParserGlobal.Verify(identToken.Content);
+                if (isVarGlobal)
+                {
+                    byteCode.Add((byte)OpCode.LoadGlobal);
+                }
+                else
+                {
+                    byteCode.Add((byte)OpCode.Load);
+                }
+
+                byte[] nameBytes = Encoding.UTF8.GetBytes(identToken.Content);
+                byteCode.Add((byte)nameBytes.Length);
+                byteCode.AddRange(nameBytes);
+            }
+
+            return byteCode;
+        }
+
+        // Método auxiliar para generar código de almacenamiento
+        private List<byte> GenerateStoreCode()
+        {
+            List<byte> byteCode = new List<byte>();
+
+            if (IsGlobal)
+            {
+                byteCode.Add((byte)OpCode.StoreGlobal);
+            }
+            else
+            {
+                byteCode.Add((byte)OpCode.Store);
+            }
+
+            byteCode.Add((byte)ConvertVariableTypeToConstantType(Type));
+            byteCode.AddRange(GetName());
+
+            return byteCode;
+        }
+
+        // Método auxiliar para crear tokens predeterminados
+        private Token CreateDefaultToken()
+        {
+            switch (Type)
+            {
+                case VariableType.Int:
+                    return new NumberLiteralToken("0", 0, 0);
+                case VariableType.Float:
+                    return new FloatLiteralToken("0.0", 0, 0);
+                case VariableType.Bool:
+                    return new BoolToken("false", 0, 0);
+                case VariableType.Char:
+                    return new CharLiteralToken("'\\0'", 0, 0);
+                case VariableType.String:
+                    return new StringToken("\"\"", 0, 0);
+                default:
+                    throw new Exception($"Tipo de variable no soportado: {Type}");
+            }
         }
 
         // Método auxiliar para encontrar el paréntesis de cierre correspondiente

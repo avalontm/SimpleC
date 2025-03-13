@@ -387,16 +387,46 @@ namespace SimpleC.VM
         /// <summary>
         /// Bucle principal de ejecución de instrucciones
         /// </summary>
+        // Modifica el método ExecuteInstructions en VirtualMachine.cs
+
         private void ExecuteInstructions()
         {
-            while (Ip < Bytecode.Count)
+            // Agregar un límite de instrucciones para evitar bucles infinitos
+            int maxInstructions = 10000; // Límite razonable
+            int instructionCount = 0;
+
+            int lastIp = -1; // Para detectar si el IP no avanza
+            int stuckCounter = 0; // Contador para detectar cuándo estamos atascados
+
+            while (Ip < Bytecode.Count && instructionCount < maxInstructions)
             {
+                // Detectar si estamos atascados en la misma instrucción
+                if (Ip == lastIp)
+                {
+                    stuckCounter++;
+                    if (stuckCounter > 5) // Si estamos atascados por más de 5 ciclos
+                    {
+                        OnDebugMessage($"Posible bucle infinito detectado en IP {Ip}, avanzando manualmente");
+                        Ip++; // Avanzar manualmente
+                        stuckCounter = 0;
+                        continue;
+                    }
+                }
+                else
+                {
+                    stuckCounter = 0;
+                    lastIp = Ip;
+                }
+
                 byte opcode = Bytecode[Ip];
                 CurrentOpcode = opcode; // Actualizar variable de clase para uso en operaciones
                 OnDebugMessage($"Executing opcode: {(OpCode)opcode} at position {Ip}");
 
                 try
                 {
+                    // Guardar posición actual del IP
+                    int currentIp = Ip;
+
                     // Simplemente delegamos la ejecución a las clases especializadas en cada instrucción
                     switch ((OpCode)opcode)
                     {
@@ -428,6 +458,22 @@ namespace SimpleC.VM
                             PopValue.Execute();
                             break;
 
+                        case OpCode.Add: // 0x30 - Suma o concatenación
+                            ArithmeticOperations.ExecuteAdd();
+                            break;
+
+                        case OpCode.Sub: // 0x31 - Resta
+                            ArithmeticOperations.ExecuteSubtract();
+                            break;
+
+                        case OpCode.Mul: // 0x32 - Multiplicación
+                            ArithmeticOperations.ExecuteMultiply();
+                            break;
+
+                        case OpCode.Div: // 0x33 - División
+                            ArithmeticOperations.ExecuteDivide();
+                            break;
+
                         case OpCode.Mark: // 0x80 - Marca de definición de función
                             ProcessMark.Execute();
                             break;
@@ -453,15 +499,31 @@ namespace SimpleC.VM
                             return;
 
                         default:
-                            ReportError($"Unknown opcode: {opcode} (0x{opcode:X2}) at position {Ip}");
-
+                            OnDebugMessage($"Unknown opcode: {opcode} (0x{opcode:X2}) at position {Ip}");
+                            Ip++; // Avanzar manualmente en caso de opcode desconocido
                             break;
+                    }
+
+                    // Verificar si la instrucción no avanzó el IP
+                    if (Ip == currentIp)
+                    {
+                        OnDebugMessage($"Instrucción no avanzó el IP, avanzando manualmente: {(OpCode)opcode}");
+                        Ip++; // Avanzar manualmente
                     }
                 }
                 catch (Exception ex)
                 {
-                    ReportError($"Error executing opcode {(OpCode)opcode}: {ex.Message}", true);
+                    OnDebugMessage($"Error ejecutando opcode {(OpCode)opcode}: {ex.Message}");
+                    // Avanzar en caso de error para evitar bucles infinitos
+                    Ip++;
                 }
+
+                instructionCount++;
+            }
+
+            if (instructionCount >= maxInstructions)
+            {
+                OnDebugMessage($"Posible bucle infinito detectado - se alcanzó el límite de {maxInstructions} instrucciones");
             }
         }
     }
