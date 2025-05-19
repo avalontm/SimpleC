@@ -1,10 +1,7 @@
 ﻿using SimpleC.Parsing;
 using SimpleC.Types;
 using SimpleC.Types.Tokens;
-using System;
-using System.Collections.Generic;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace SimpleC.Utils
 {

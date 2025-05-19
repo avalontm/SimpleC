@@ -115,8 +115,8 @@ namespace SimpleC.Types.AstNodes
             }
 
             // Añadir el opcode Return
-            Debug.WriteLine("Adding Return opcode");
-            opCodes.Add((byte)OpCode.Return);
+           // Debug.WriteLine("Adding Return opcode");
+           // opCodes.Add((byte)OpCode.Return);
 
             return opCodes;
         }

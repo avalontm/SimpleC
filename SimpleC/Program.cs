@@ -2,7 +2,6 @@
 using SimpleC.Parsing;
 using SimpleC.Utils;
 using SimpleC.VM;
-using System.Diagnostics;
 using System.Text;
 
 namespace SimpleC
@@ -17,7 +16,8 @@ namespace SimpleC
         static bool useDiagram = false;
         static bool logEnabled = false;
         static string diagramPath = "diagrama_ast.png";
-        static int frameWidth;
+        static int frameWidth = 65;
+        static bool ExternalEnabled = false;
 
         static void Main(string[] args)
         {
@@ -75,7 +75,17 @@ namespace SimpleC
                             }
                             logEnabled = true;
                             break;
+                        case "--external":
+                            if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                            {
+                                i++;
+                            }
+                            else
+                            {
 
+                            }
+                            ExternalEnabled = true;
+                            break;
                         case "--translate":
                             ParserGlobal.IsTranslate = true;
                             break;
@@ -220,7 +230,7 @@ namespace SimpleC
             ColorParser.WriteLine($"[color=cyan]{CreateContentLine("[color=green]INSTRUCCIONES[/color]")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╠', '═', '╣')}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=white]Uso:[/color]")}[/color]");
-            ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=yellow]simplec <archivo> [--diagram <path>] [--log <path>][/color]")}[/color]");
+            ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=yellow]simplec <archivo> [--diagram <path>] [--log][/color]")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=white]    Compila el archivo especificado[/color]")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateContentLine("")}[/color]");
             ColorParser.WriteLine($"[color=cyan]{CreateLeftAlignedLine("[color=yellow]simplec version[/color]")}[/color]");
@@ -294,11 +304,22 @@ namespace SimpleC
                 ColorParser.WriteLine($"[color=cyan]{CreateHorizontalLine('╚', '═', '╝')}[/color]");
                 Console.WriteLine();
 
+            }
+
+            if (logEnabled || ExternalEnabled)
+            {
                 foreach (var node in ast.SubNodes)
                 {
                     node.Generate();
+                    if(ExternalEnabled)
+                    {
+                        Console.WriteLine();
+                    }
                 }
+            }
 
+            if (logEnabled)
+            {
                 Console.WriteLine();
                 ColorParser.WriteLine("[color=green]✓ Generación de código completada[/color]");
 
